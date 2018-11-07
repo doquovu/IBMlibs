@@ -1,0 +1,68 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | foam-extend: Open Source CFD                    |
+|  \\    /   O peration     | Version:     3.2                                |
+|   \\  /    A nd           | Web:         http://www.foam-extend.org         |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      setParticles;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+parameters
+{
+    IBtechnique             directForcing;
+    multiDirForcingIter     0;
+    IBObjects
+    {
+        particle1                       //- name of object
+        {
+            type		IBParticles;	//- define type
+            CG			(0 0 0.0001);   //- center of gravity
+            radius		0.0005;         //- radius of the circle circumsribe about the object
+            nPoints		78;             //- number of Lagrangian points
+            movable		no;             //- is object move?
+            rho			1200;           //- object density
+            motions
+            {
+                linearMotion            //- define motion type. if movable is set to no, this will not be read 
+                {
+                    u (1 0 0);
+                }
+            }
+        }
+        particle2                       //- different objects with different types can be defined
+        {
+            type		IBParticles;
+            CG			(2 0.5 0);
+            radius		0.5;
+            nPoints		160;
+            movable		no;
+            rho			1500;
+            motions
+            {
+                linearMotion
+                {
+                    u (0.25 0 0);
+                }
+            }
+        }
+    }
+    calcRepulsive	no;				//- calculate repulsive force
+    epsilonP		1e-05;          //- stiffness parameters for object-object collision, default value = 1e-07
+    epsilonW		1e-05;          //- stiffness parameters for object-wall collision, default value = 1e-07
+}
+writeData
+{
+    writeInterval   5;       //- interval to write force and object's data
+    writeLagrPoints	yes;     //- write Lagrangian points
+    writeShadPoints no;      //- write Shadow points (when there are cyclic boundary)
+    writeLagrForces	no;      //- write ibForce at Lagrangian points
+    writeObjVTU		no;      //- write the object's geometry in VTU format
+    writeIBForce	yes;     //- write forces act on object
+}
+// ************************************************************************* //

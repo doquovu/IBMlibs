@@ -1,0 +1,20 @@
+IBModel/IBModel.C
+
+models/IBTechnique/IBTechnique.C
+models/directForcing/directForcing.C
+models/twoPhaseDirectForcing/twoPhaseDirectForcing.C
+
+IBObjects/IBObjectRegistry.C
+IBObjects/IBObject/IBObject.C
+IBObjects/IBParticles/IBParticles.C
+
+IBOStream/IBOStream.C
+
+IBMotions/movingIBObjects.C
+IBMotions/IBMotion/IBMotion.C
+IBMotions/sixDoFMotion/sixDoFMotion.C
+IBMotions/linearMotion/linearMotion.C
+IBMotions/rotatingMotion/rotatingMotion.C
+
+
+LIB = $(FOAM_USER_LIBBIN)/libIBModel
