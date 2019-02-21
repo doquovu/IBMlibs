@@ -113,7 +113,7 @@ Foam::labelList Foam::IBObjectRegistry::findSolidCells
     if (objects_[objectID].objectType() == "IBParticles")
     {
         // scalar span = R_[objectID]+h_/sqrt(2.0);
-        scalar span = R_[objectID] ;
+        scalar span = R_[objectID] + 1.5*h_;
         forAll(mesh_.C(), cellI)
         { 
             scalar dR = mag(mesh_.C()[cellI] - C);
@@ -616,7 +616,6 @@ Foam::IBObjectRegistry::IBObjectRegistry
     R_(),
     CoG_(),
 	neiCells_(),
-    solidCells_(),
     UTranslate_(),
     URotate_(),
     nFaces_(),

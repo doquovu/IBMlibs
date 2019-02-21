@@ -29,7 +29,6 @@ class sixDoFMotion
 		//- Reference to Immersed object
 		IBObject& obj_;
 
-		//- Solver to calculate velocities
 		word solver_;
 
 		//- Translational velocity
@@ -64,6 +63,7 @@ public:
 
 	//- Member functions
 
+		const word& solver() {return solver_;}
 
 		//- Solve Newton equation of motion
 		void updateMotion
@@ -101,7 +101,6 @@ public:
 		//- Return rotational velocity
 		virtual vector URotate();
 
-		const word solver() { return solver_; } 
 }; // End class
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

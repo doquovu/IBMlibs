@@ -89,10 +89,11 @@ void IBParticles::createParticle2D(const dictionary& dict)
                             );
     }
     nFaces_ = nPoints_;
-    nPointsOfFaces_.setSize(nFaces_,3);
+    nPointsOfFaces_.setSize(nFaces_);
     pointOfFace_.setSize(nFaces_);
     for(int i=0;i<nFaces_;i++)
     {
+        nPointsOfFaces_[i] = 3;
         pointOfFace_[i].setSize(3);
         pointOfFace_[i][0] = i;
         pointOfFace_[i][1] = (i+1)%nPoints_;

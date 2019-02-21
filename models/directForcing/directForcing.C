@@ -301,7 +301,6 @@ void Foam::directForcing::write()
         writeLagrForces(objI, LPoints()[objI], Fk_[objI]);
         writeIBForces(objI, Fk_[objI], dV());
         writeObjData(objI, CoG()[objI], UTranslate()[objI], URotate()[objI]);
-    
         writeObjVTU
         (
             objI, 

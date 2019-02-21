@@ -257,11 +257,6 @@ void Foam::IBOStream::writeIBForces
 		if (mesh_.time().timeIndex() == 0 && Pstream::master())
 		{
 		    os 	<< "Time, Fx, Fy, Fz, magF" << endl;
-		    os  << mesh_.time().timeName() << ", "
-		    	<< ibForce.x()             << ", "
-		    	<< ibForce.y()             << ", "
-		    	<< ibForce.z()             << ", "
-		    	<< magForce				   << endl; 
 		}
 	    if (mesh_.time().timeIndex() % writeInterval_ == 0 && Pstream::master())
 	    {
@@ -291,31 +286,28 @@ void Foam::IBOStream::writeObjVTU
 			 || mesh_.time().outputTime()
 		)
 		{
-			//- Start writing
+			//- Create output file
+			fileName outputDir(fileName::null);
+
+		    if(Pstream::parRun())
+		    {
+		        outputDir = mesh_.time().path()/".."/"outputData"/"ObjectVTU";
+		    }
+		    else
+		        outputDir = mesh_.time().path()/"outputData"/"ObjectVTU";
+
+		    mkDir (outputDir);
+		    
+		    autoPtr<OFstream> outputFilePtr;
+
+		    word outputFile = "Object-"+Foam::name(objectID+1)+"_Time-"
+		    					+Foam::name(mesh_.time().timeIndex())+".vtu";
+
+		    outputFilePtr.reset(new OFstream(outputDir/outputFile));
+
+		    //- Start writing
 			if (Pstream::master())
 			{
-				Info<< "IBM: Writing VTU file of object "<<objectID+1<< endl;
-
-				//- Create output file
-				fileName outputDir(fileName::null);
-
-				if(Pstream::parRun())
-				{
-					outputDir = mesh_.time().path()/".."/"outputData"/"ObjectVTU";
-				}
-				else
-					outputDir = mesh_.time().path()/"outputData"/"ObjectVTU";
-
-				mkDir (outputDir);
-				
-				autoPtr<OFstream> outputFilePtr;
-
-				word outputFile = "Object-"+Foam::name(objectID+1)+"_Time-"
-									+Foam::name(mesh_.time().timeIndex())+".vtu";
-
-				outputFilePtr.reset(new OFstream(outputDir/outputFile));
-
-
 				outputFilePtr() << "<?xml version=\"1.0\"?>" << "\n";
 				outputFilePtr() << "<VTKFile type=\"UnstructuredGrid\">" << "\n";
 				outputFilePtr() << "<UnstructuredGrid>" << "\n";

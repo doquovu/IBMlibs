@@ -216,24 +216,24 @@ void Foam::movingIBObjects::updateObjectMotions
                     }
                 }
 
-                // if (sDoF.solver() == "uhlmann")
-                // {
-                //     sDoF.updateMotion
-                //     (
-                //         UTranslate()[objID],
-                //         URotate()[objID],
-                //         mesh_,
-                //         ForceLagrange,
-                //         repulsiveForce,
-                //         CoG()[objID],
-                //         LPoints()[objID],
-                //         rhoF(),
-                //         dV(),
-                //         g()
-                //     );
-                // }
-                // if (sDoF.solver() == "tobias")
-                // {
+                if (sDoF.solver() == "uhlmann")
+                {
+                    sDoF.updateMotion
+                    (
+                        UTranslate()[objID],
+                        URotate()[objID],
+                        mesh_,
+                        ForceLagrange,
+                        repulsiveForce,
+                        CoG()[objID],
+                        LPoints()[objID],
+                        rhoF(),
+                        dV(),
+                        g()
+                    );
+                }
+                else if (sDoF.solver() == "tobias")
+                {
                     const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
                     const volVectorField& Uold = U.oldTime();
                     const scalar dT = mesh_.time().deltaTValue();
@@ -266,17 +266,17 @@ void Foam::movingIBObjects::updateObjectMotions
                         volIntegralU_,
                         volIntegralRxU_
                     );   
-                // }
-                // else
-                // {
-                //     FatalErrorIn
-                //     (
-                //         "movingIBObjects::updateObjectMotions(label, "
-                //         "const vectorField&)" 
-                //     )	<< "Unknown solver for sixDoF motion " << endl
-                //         << "Valid solver are: 2( tobias, uhlmann )"<<endl
-                //         <<exit(FatalError);
-                // }
+                }
+                else
+                {
+                    FatalErrorIn
+                    (
+                        "movingIBObjects::updateObjectMotions(label, "
+                        "const vectorField&)" 
+                    )	<< "Unknown solver for sixDoF motion " << endl
+                        << "Valid solver are: 2( tobias, uhlmann )"<<endl
+                        <<exit(FatalError);
+                }
                 forAll(uBoundary_[objID], pI)
 				{
 				    uBoundary_[objID][pI] 
@@ -297,23 +297,23 @@ Foam::vector Foam::movingIBObjects::volIntegralU
 )
 {   
     vector IU(vector::zero);
-    volScalarField vF
+    volScalarField volumeFraction
     (
         IOobject
         (
-            "vF",
+            "volumeFraction",
             mesh_.time().timeName(),
             mesh_,
             IOobject::NO_READ,
             IOobject::AUTO_WRITE
         ),
         mesh_,
-        dimensionedScalar("vF", dimless, 0)
+        dimensionedScalar("volumeFraction", dimless, 0)
     ); 
     forAll(solidCells()[objID], cellI)
     {
         scalar vf = volFraction(objID, solidCells()[objID][cellI], CoG()[objID]);
-        vF[solidCells()[objID][cellI]] = vf;
+        volumeFraction[solidCells()[objID][cellI]] = vf;
         IU += uField[solidCells()[objID][cellI]]*dV()*vf;
     }
 
@@ -330,7 +330,7 @@ Foam::vector Foam::movingIBObjects::volIntegralU
                         Shd1SolidCells()[objID][cellI], 
                         Shd1CoG()[objID]
                     );
-                vF[Shd1SolidCells()[objID][cellI]] = vf;
+                volumeFraction[Shd1SolidCells()[objID][cellI]] = vf;
                 IU += uField[Shd1SolidCells()[objID][cellI]]*dV()*vf;
             }
         }
@@ -345,14 +345,14 @@ Foam::vector Foam::movingIBObjects::volIntegralU
                         Shd2SolidCells()[objID][cellI], 
                         Shd2CoG()[objID]
                     );
-                vF[Shd2SolidCells()[objID][cellI]] = vf;
+                volumeFraction[Shd2SolidCells()[objID][cellI]] = vf;
                 IU += uField[Shd2SolidCells()[objID][cellI]]*dV()*vf;
             }
         }
     }
     if (mesh_.time().outputTime() || mesh_.time().timeIndex() == 0)
     {
-        vF.write();
+        volumeFraction.write();
     }
 
     return IU;
@@ -393,8 +393,10 @@ Foam::vector Foam::movingIBObjects::volIntegralRxU
                     );
                 IRxU +=
                 ( 
-                    (cc[Shd1SolidCells()[objID][cellI]] - Shd1CoG()[objID]) 
-                  ^ U[Shd1SolidCells()[objID][cellI]]
+                    (
+                        (cc[Shd1SolidCells()[objID][cellI]] - Shd1CoG()[objID])
+                      ^ U[Shd1SolidCells()[objID][cellI]]
+                    )
                   * dV()
                   * vf
                 );
@@ -413,8 +415,10 @@ Foam::vector Foam::movingIBObjects::volIntegralRxU
                     );
                 IRxU +=
                 ( 
-                    (cc[Shd2SolidCells()[objID][cellI]] - Shd2CoG()[objID]) 
-                  ^ U[Shd2SolidCells()[objID][cellI]]
+                    (
+                        (cc[Shd2SolidCells()[objID][cellI]] - Shd2CoG()[objID]) 
+                      ^ U[Shd2SolidCells()[objID][cellI]]
+                    )
                   * dV()
                   * vf
                 );
