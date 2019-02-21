@@ -20,14 +20,14 @@ namespace Foam
 
 IBTechnique::IBTechnique
 (
-	const fvMesh& mesh,
+	IBdynamicFvMesh& mesh,
 	const dictionary& dict
 )
 :	
 	IBOStream(mesh),
 	movingIBObjects(mesh,dict),
 	mesh_(mesh),
-	pressureGradField_(dict.lookup("gradP"))
+	dict_(dict)
 {}
 
 // -------------------------------Member Functions----------------------------//
@@ -68,7 +68,9 @@ scalar IBTechnique::deltaFunc1D(scalar x_Eul, scalar x_Lag)
 
 volVectorField IBTechnique::pressureGradField()
 {
-	Info<<"IBM: Adding pressure gradient field:"<<pressureGradField_<<nl<<endl;
+	scalar dP = dict_.lookupOrDefault("gradPField", 0.0);
+	word dPDir = dict_.lookup("gradPDir");
+	Info<<"IBM: Adding pressure gradient field: "<< dP <<nl<<endl;
 	volVectorField gradP
 	(
 	    IOobject
@@ -77,18 +79,45 @@ volVectorField IBTechnique::pressureGradField()
 	        mesh_.time().timeName(),
 	        mesh_,
 	        IOobject::NO_READ,
-	        IOobject::NO_WRITE
+	        IOobject::AUTO_WRITE
 	    ),
 	    mesh_,
-	    dimensionedVector("gradP", dimensionSet(0,1,-2,0,0,0,0), pressureGradField_)
+	    dimensionedVector("gradP", dimensionSet(0,1,-2,0,0,0,0), vector::zero)
 	);
+	forAll(gradP, celli)
+	{
+		if (dPDir == "horizontal")
+			gradP[celli] = vector(dP, 0, 0);
+		else if (dPDir == "vertical")
+			gradP[celli] = vector(0, dP, 0);
+		else if (dPDir == "curvilinearity")
+		{
+			//- Assuming center of curve channel is (0 0 0)
+			vector position = mesh_.C()[celli];
+			vector flowDir = vector(-position.y(), position.x(), position.z());
+			flowDir /= mag(flowDir);
+			gradP[celli] = dP * flowDir;
+		}
+		else
+		FatalErrorIn
+		(
+			"IBTechnique::pressureGradField()"
+		)	<< "Unknown direction of external pressure gradient field "<< dPDir <<endl
+			<< "Valid approaching method are : " <<endl
+			<< "(" <<endl
+			<< "horizontal" <<endl 
+			<< "vertical" <<endl
+			<< "curvilinearity"<<endl
+			<<")"<<endl
+			<< exit(FatalError);
+	}
 
 	return gradP;
 }
 
 autoPtr<IBTechnique> IBTechnique::New
 (
-	const fvMesh& mesh,
+	IBdynamicFvMesh& mesh,
 	const dictionary& dict
 )
 {
@@ -103,7 +132,7 @@ autoPtr<IBTechnique> IBTechnique::New
 	{
 		FatalErrorIn
 		(
-			"IBTechnique::New(const word& name, const fvMesh& mesh,"
+			"IBTechnique::New(const word& name, const IBdynamicFvMesh& mesh,"
 			"const dictionary& dict)"
 		)	<< "Unknown approaching method "<< typeName <<endl <<endl
 			<< "Valid approaching method are : " <<endl

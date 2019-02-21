@@ -18,7 +18,7 @@ namespace Foam
 
 Foam::IBModel::IBModel
 (
-	const fvMesh& mesh
+	IBdynamicFvMesh& mesh
 )
 :	
 	IOdictionary
@@ -41,9 +41,14 @@ Foam::volVectorField Foam::IBModel::pressureGradientField()
 	return techniquePtr_->pressureGradField();
 }
 
-Foam::volVectorField Foam::IBModel::ibForce()
+Foam::volVectorField Foam::IBModel::ibForce(volVectorField& U)
 {
-   return techniquePtr_->ibForce();
+   return techniquePtr_->ibForce(U);
+}
+
+Foam::volVectorField Foam::IBModel::ibForceInt()
+{
+   return techniquePtr_->ibForceInt();
 }
 
 void Foam::IBModel::multiDirectForcing

@@ -734,5 +734,8 @@ $(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/argListI.H \
 $(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/timeSelector.H \
 $(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/scalarRanges.H \
 $(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/scalarRange.H \
+lnInclude/IBBox.H \
+lnInclude/IBMotion.H \
+$(WM_PROJECT_DIR)/applications/utilities/mesh/generation/foamyMesh/conformalVoronoiMesh/vectorTools/vectorTools.H \
 
 

@@ -34,7 +34,7 @@ void Foam::IBOStream::readDict()
     );
     writeInterval_ = writeDict.lookupOrDefault<scalar>("writeInterval", 1);
     writeLagrPoints_ = writeDict.lookupOrDefault<Switch>("writeLagrPoints", false);
-    writeLagrForces_ = writeDict.lookupOrDefault<Switch>("writeShadPoints", false);
+    writeShadPoints_ = writeDict.lookupOrDefault<Switch>("writeShadPoints", false);
     writeLagrForces_ = writeDict.lookupOrDefault<Switch>("writeLagrForces", false);
     writeIBForce_ = writeDict.lookupOrDefault<Switch>("writeIBForce", false);
     writeObjVTU_ = writeDict.lookupOrDefault<Switch>("writeObjVTU", false);
@@ -90,12 +90,15 @@ void Foam::IBOStream::writeLagrPoints
 		    
 		    outputFilePtr.reset(new OFstream(outputDir/outputFile));
 		    
-		    outputFilePtr() << "X, Y, Z" << endl;
-		    
-		    forAll(lPoints, i)
+			if (Pstream::master())
 		    {
-			    outputFilePtr() <<lPoints[i].x()<<", "<<lPoints[i].y()<<", "<<lPoints[i].z()<< endl;
-		    }
+				outputFilePtr() << "X, Y, Z" << endl;
+		    
+		    	forAll(lPoints, i)
+		    	{	
+					outputFilePtr() <<lPoints[i].x()<<", "<<lPoints[i].y()<<", "<<lPoints[i].z()<< endl;
+				}
+			}
 		}
 	}
 }
@@ -107,13 +110,13 @@ void Foam::IBOStream::writeShadPoints
 	const pointField& shd2Points
 )
 {
-	if (writeLagrPoints_)
+	if (writeShadPoints_)
 	{
 		if (    mesh_.time().timeIndex() == 0 
 			 || mesh_.time().outputTime()
 		   )
 		{
-			Info<< "  Writing Shadow points of object " <<objectID+1<< endl;
+			Info<< "IBM: Writing Shadow points of object " <<objectID+1<< endl;
 
 			fileName outputDir(fileName::null); 
 
@@ -139,16 +142,18 @@ void Foam::IBOStream::writeShadPoints
 		    outputFilePtr1.reset(new OFstream(outputDir/outputFile1));
 		    outputFilePtr2.reset(new OFstream(outputDir/outputFile2));
 		    
-		    outputFilePtr1() << "X, Y, Z" << endl;
-		    outputFilePtr2() << "X, Y, Z" << endl;
-		    
-		    forAll(shd1Points, i)
+			if (Pstream::master())
 		    {
-			    outputFilePtr1() <<shd1Points[i].x()<<", "<<shd1Points[i].y()<<", "<<shd1Points[i].z()<< endl;
-			    outputFilePtr2() <<shd2Points[i].x()<<", "<<shd2Points[i].y()<<", "<<shd2Points[i].z()<< endl;
-		    }
+				outputFilePtr1() << "X, Y, Z" << endl;
+				outputFilePtr2() << "X, Y, Z" << endl;
+				
+				forAll(shd1Points, i)
+				{
+					outputFilePtr1() <<shd1Points[i].x()<<", "<<shd1Points[i].y()<<", "<<shd1Points[i].z()<< endl;
+					outputFilePtr2() <<shd2Points[i].x()<<", "<<shd2Points[i].y()<<", "<<shd2Points[i].z()<< endl;
+				}
+			}
 		}
-
 	}
 }
 
@@ -187,13 +192,16 @@ void Foam::IBOStream::writeLagrForces
 		    
 		    outputFilePtr.reset(new OFstream(outputDir/outputFile));
 		    
-		    outputFilePtr() << "X, Y, Z, Fx, Fy, Fz" << endl;
-		    
-		    forAll(lPoints, i)
-		    {
-			    outputFilePtr() <<lPoints[i].x()<<", "<<lPoints[i].y()<<", "<<lPoints[i].z() <<", "
-			    				<<lForces[i].x()<<", "<<lForces[i].y()<<", "<<lForces[i].z()<< endl;
-		    }
+			if (Pstream::master())
+			{
+				outputFilePtr() << "X, Y, Z, Fx, Fy, Fz" << endl;
+				
+				forAll(lPoints, i)
+				{
+					outputFilePtr() <<lPoints[i].x()<<", "<<lPoints[i].y()<<", "<<lPoints[i].z() <<", "
+									<<lForces[i].x()<<", "<<lForces[i].y()<<", "<<lForces[i].z()<< endl;
+				}
+			}
 		}
 	}
 }
@@ -246,7 +254,7 @@ void Foam::IBOStream::writeIBForces
 
 		//- Write file
 		scalar magForce = mag(ibForce);
-		if (mesh_.time().timeIndex() == 0)
+		if (mesh_.time().timeIndex() == 0 && Pstream::master())
 		{
 		    os 	<< "Time, Fx, Fy, Fz, magF" << endl;
 		    os  << mesh_.time().timeName() << ", "
@@ -255,7 +263,7 @@ void Foam::IBOStream::writeIBForces
 		    	<< ibForce.z()             << ", "
 		    	<< magForce				   << endl; 
 		}
-	    if (mesh_.time().timeIndex() % writeInterval_ == 0)
+	    if (mesh_.time().timeIndex() % writeInterval_ == 0 && Pstream::master())
 	    {
 	    	os  << mesh_.time().timeName() << ", "
 	    		<< ibForce.x()             << ", "
@@ -283,167 +291,173 @@ void Foam::IBOStream::writeObjVTU
 			 || mesh_.time().outputTime()
 		)
 		{
-			//- Create output file
-			fileName outputDir(fileName::null);
-
-		    if(Pstream::parRun())
-		    {
-		        outputDir = mesh_.time().path()/".."/"outputData"/"ObjectVTU";
-		    }
-		    else
-		        outputDir = mesh_.time().path()/"outputData"/"ObjectVTU";
-
-		    mkDir (outputDir);
-		    
-		    autoPtr<OFstream> outputFilePtr;
-
-		    word outputFile = "Object-"+Foam::name(objectID+1)+"_Time-"
-		    					+Foam::name(mesh_.time().timeIndex())+".vtu";
-
-		    outputFilePtr.reset(new OFstream(outputDir/outputFile));
-
-		    //- Start writing
-			outputFilePtr() << "<?xml version=\"1.0\"?>" << "\n";
-			outputFilePtr() << "<VTKFile type=\"UnstructuredGrid\">" << "\n";
-			outputFilePtr() << "<UnstructuredGrid>" << "\n";
-
-			if(mesh_.nGeometricD()==2)
+			//- Start writing
+			if (Pstream::master())
 			{
-				outputFilePtr()	<< "<Piece NumberOfPoints=\"" << Nodes.size()+1
-								<< "\" NumberOfCells=\"" 	  << numberFaces_ << "\">" << "\n";
-			}
-			if(mesh_.nGeometricD()==3)
-			{
-				outputFilePtr() << "<Piece NumberOfPoints=\"" << Nodes.size()
-				                << "\" NumberOfCells=\""      << numberFaces_ << "\">" << "\n";
-			}
-			
-			outputFilePtr() << "<Points>" << "\n";
-			outputFilePtr() << "<DataArray NumberOfComponents=\"3\" type=\"Float32\" format=\"ascii\" >" << "\n";
+				Info<< "IBM: Writing VTU file of object "<<objectID+1<< endl;
 
-			forAll(Nodes, i)
-			{
-			    outputFilePtr() << Nodes[i].x() << " "
-			                    << Nodes[i].y() << " "
-			                    << Nodes[i].z() << "\n";
-			}
+				//- Create output file
+				fileName outputDir(fileName::null);
 
-			if(mesh_.nGeometricD()==2)
-			{
-			    outputFilePtr() << pntCenter.x() << " "
-			                    << pntCenter.y() << " "
-			                    << pntCenter.z() << "\n";
-			}
+				if(Pstream::parRun())
+				{
+					outputDir = mesh_.time().path()/".."/"outputData"/"ObjectVTU";
+				}
+				else
+					outputDir = mesh_.time().path()/"outputData"/"ObjectVTU";
 
-			outputFilePtr() << "</DataArray>" << "\n";
-			outputFilePtr() << "</Points>"    << "\n";
-			outputFilePtr() << "<Cells>"      << "\n";
-			outputFilePtr() << "<DataArray Name=\"connectivity\" type=\"Int32\" format=\"ascii\" >" << "\n";
+				mkDir (outputDir);
+				
+				autoPtr<OFstream> outputFilePtr;
 
-			for (int i=0;i<numberFaces_;i++)
-			{
-			    for (int j=0;j<nPntsOfFace_[i];j++)
-			    {
-			        outputFilePtr() << PntsOfFace_[i][j] << "\t";
-			    }
+				word outputFile = "Object-"+Foam::name(objectID+1)+"_Time-"
+									+Foam::name(mesh_.time().timeIndex())+".vtu";
 
-			    outputFilePtr() << "\n";
-			}
+				outputFilePtr.reset(new OFstream(outputDir/outputFile));
 
-			outputFilePtr() << "</DataArray>" << "\n";
-			outputFilePtr() << "<DataArray Name=\"offsets\" type=\"Int32\" format=\"ascii\" >" << "\n";
 
-			scalar offset=0;
-			
-			for (int i=0;i<numberFaces_;i++)
-			{
-			    offset+=nPntsOfFace_[i];/// Triangular face
-			    outputFilePtr() << offset << " ";
-			    if((i+1)%6==0)
-			    {
-			    	outputFilePtr() << "\n";
-			    } 
-			}
-			outputFilePtr() << "\n</DataArray>" << "\n";
-			outputFilePtr() << "<DataArray Name=\"types\" type=\"UInt8\" format=\"ascii\" >" << "\n";
+				outputFilePtr() << "<?xml version=\"1.0\"?>" << "\n";
+				outputFilePtr() << "<VTKFile type=\"UnstructuredGrid\">" << "\n";
+				outputFilePtr() << "<UnstructuredGrid>" << "\n";
 
-			for (int i=0;i<numberFaces_;i++)
-			{
-			    if(nPntsOfFace_[i]==3)
-			    {
-			        outputFilePtr() << "5 "; /// Triangular face
-			    }
-			    if(nPntsOfFace_[i]==4)
-			    {
-			        outputFilePtr() << "9 "; /// Quard
-			    }
-			    if(nPntsOfFace_[i] > 4)
-			    {
-			        outputFilePtr() << "6 "; /// Triangular strip for top and bottom faces of equal sphere
-			    }
-			    if((i+1)%6==0)
-			    {
-			    	outputFilePtr() << "\n";
-			    } 
-			}
+				if(mesh_.nGeometricD()==2)
+				{
+					outputFilePtr()	<< "<Piece NumberOfPoints=\"" << Nodes.size()+1
+									<< "\" NumberOfCells=\"" 	  << numberFaces_ << "\">" << "\n";
+				}
+				if(mesh_.nGeometricD()==3)
+				{
+					outputFilePtr() << "<Piece NumberOfPoints=\"" << Nodes.size()
+									<< "\" NumberOfCells=\""      << numberFaces_ << "\">" << "\n";
+				}
+				
+				outputFilePtr() << "<Points>" << "\n";
+				outputFilePtr() << "<DataArray NumberOfComponents=\"3\" type=\"Float32\" format=\"ascii\" >" << "\n";
 
-			outputFilePtr() << "\n";
-			outputFilePtr() << "</DataArray>" << "\n";
-			outputFilePtr() << "</Cells>"     << "\n";
-			/// Vectors at nodes:
-			outputFilePtr() << "<CellData Vectors=\"" << "Fk" << "\">" << "\n";
-			outputFilePtr() << "<DataArray Name=\""   << "Fk" 
-				<< "\" type=\"Float32\" format=\"ascii\" NumberOfComponents=\"3\">"<<"\n";
-			if(mesh_.nGeometricD()==2)
-			{
+				forAll(Nodes, i)
+				{
+					outputFilePtr() << Nodes[i].x() << " "
+									<< Nodes[i].y() << " "
+									<< Nodes[i].z() << "\n";
+				}
+
+				if(mesh_.nGeometricD()==2)
+				{
+					outputFilePtr() << pntCenter.x() << " "
+									<< pntCenter.y() << " "
+									<< pntCenter.z() << "\n";
+				}
+
+				outputFilePtr() << "</DataArray>" << "\n";
+				outputFilePtr() << "</Points>"    << "\n";
+				outputFilePtr() << "<Cells>"      << "\n";
+				outputFilePtr() << "<DataArray Name=\"connectivity\" type=\"Int32\" format=\"ascii\" >" << "\n";
+
 				for (int i=0;i<numberFaces_;i++)
 				{
-				    if(i<numberFaces_/2.0)
-				        outputFilePtr()<<0<<" "<<0<<" "<<0<<" ";
-				    else
-				        outputFilePtr()<<1<<" "<<1<<" "<<1<<" ";
-				    // outputFilePtr()<<(Fk[PntsOfFace_[i][0]].x()+Fk[PntsOfFace_[i][1]].x())/2.0<<" "
-				    // 				  <<(Fk[PntsOfFace_[i][0]].y()+Fk[PntsOfFace_[i][1]].y())/2.0<<" "
-				    //  			  <<0<<" ";
-				    if((i+1)%2==0) outputFilePtr()<<"\n";
+					for (int j=0;j<nPntsOfFace_[i];j++)
+					{
+						outputFilePtr() << PntsOfFace_[i][j] << "\t";
+					}
+
+					outputFilePtr() << "\n";
 				}
+
+				outputFilePtr() << "</DataArray>" << "\n";
+				outputFilePtr() << "<DataArray Name=\"offsets\" type=\"Int32\" format=\"ascii\" >" << "\n";
+
+				scalar offset=0;
+				
+				for (int i=0;i<numberFaces_;i++)
+				{
+					offset+=nPntsOfFace_[i];/// Triangular face
+					outputFilePtr() << offset << " ";
+					if((i+1)%6==0)
+					{
+						outputFilePtr() << "\n";
+					} 
+				}
+				outputFilePtr() << "\n</DataArray>" << "\n";
+				outputFilePtr() << "<DataArray Name=\"types\" type=\"UInt8\" format=\"ascii\" >" << "\n";
+
+				for (int i=0;i<numberFaces_;i++)
+				{
+					if(nPntsOfFace_[i]==3)
+					{
+						outputFilePtr() << "5 "; /// Triangular face
+					}
+					if(nPntsOfFace_[i]==4)
+					{
+						outputFilePtr() << "9 "; /// Quard
+					}
+					if(nPntsOfFace_[i] > 4)
+					{
+						outputFilePtr() << "6 "; /// Triangular strip for top and bottom faces of equal sphere
+					}
+					if((i+1)%6==0)
+					{
+						outputFilePtr() << "\n";
+					} 
+				}
+
+				outputFilePtr() << "\n";
+				outputFilePtr() << "</DataArray>" << "\n";
+				outputFilePtr() << "</Cells>"     << "\n";
+				/// Vectors at nodes:
+				outputFilePtr() << "<CellData Vectors=\"" << "Fk" << "\">" << "\n";
+				outputFilePtr() << "<DataArray Name=\""   << "Fk" 
+					<< "\" type=\"Float32\" format=\"ascii\" NumberOfComponents=\"3\">"<<"\n";
+				if(mesh_.nGeometricD()==2)
+				{
+					for (int i=0;i<numberFaces_;i++)
+					{
+						if(i<numberFaces_/2.0)
+							outputFilePtr()<<0<<" "<<0<<" "<<0<<" ";
+						else
+							outputFilePtr()<<1<<" "<<1<<" "<<1<<" ";
+						// outputFilePtr()<<(Fk[PntsOfFace_[i][0]].x()+Fk[PntsOfFace_[i][1]].x())/2.0<<" "
+						// 				  <<(Fk[PntsOfFace_[i][0]].y()+Fk[PntsOfFace_[i][1]].y())/2.0<<" "
+						//  			  <<0<<" ";
+						if((i+1)%2==0) outputFilePtr()<<"\n";
+					}
+				}
+				if(mesh_.nGeometricD()==3)
+				{
+					if(numberFaces_ == nPoints)
+					{
+						for (int i=0;i<numberFaces_;i++)
+						{
+							if(i<numberFaces_/2.0)
+								outputFilePtr()<<0<<" "<<0<<" "<<0<<" ";
+							else
+								outputFilePtr()<<1<<" "<<1<<" "<<1<<" ";
+							// outputFilePtr()<<Fk[i].x()<<" "
+							//     <<Fk[i].y()<<" "
+							//     <<Fk[i].z()<<" ";
+							if((i+1)%2==0) outputFilePtr()<<"\n";
+						}
+					}
+					else
+					{
+						for (int i=0;i<numberFaces_;i++)
+						{
+							if(i<numberFaces_/2.0)
+								outputFilePtr()<<0<<" "<<0<<" "<<0<<" ";
+							else
+								outputFilePtr()<<1<<" "<<1<<" "<<1<<" ";
+							// outputFilePtr()<<(Fk[PntsOfFace_[i][0]].x()+Fk[PntsOfFace_[i][1]].x()+Fk[PntsOfFace_[i][2]].x())/3.0<<" "
+							//     <<(Fk[PntsOfFace_[i][0]].y()+Fk[PntsOfFace_[i][1]].y()+Fk[PntsOfFace_[i][2]].y())/3.0<<" "
+							//     <<(Fk[PntsOfFace_[i][0]].z()+Fk[PntsOfFace_[i][1]].z()+Fk[PntsOfFace_[i][2]].z())/3.0<<" ";
+							if((i+1)%2==0) outputFilePtr()<<"\n";
+						}
+					}
+				}
+				outputFilePtr()<<"\n</DataArray>"<<"\n";
+				outputFilePtr()<<"</CellData>"<<"\n";
+				outputFilePtr()<<"</Piece>"<<"\n";
+				outputFilePtr()<<"</UnstructuredGrid>"<<"\n";
+				outputFilePtr()<<"</VTKFile>"<<"\n";
 			}
-			if(mesh_.nGeometricD()==3)
-			{
-			    if(numberFaces_ == nPoints)
-			    {
-			        for (int i=0;i<numberFaces_;i++)
-			        {
-			            if(i<numberFaces_/2.0)
-			                outputFilePtr()<<0<<" "<<0<<" "<<0<<" ";
-			            else
-			                outputFilePtr()<<1<<" "<<1<<" "<<1<<" ";
-			            // outputFilePtr()<<Fk[i].x()<<" "
-			            //     <<Fk[i].y()<<" "
-			            //     <<Fk[i].z()<<" ";
-			            if((i+1)%2==0) outputFilePtr()<<"\n";
-			        }
-			    }
-			    else
-			    {
-			        for (int i=0;i<numberFaces_;i++)
-			        {
-			            if(i<numberFaces_/2.0)
-			                outputFilePtr()<<0<<" "<<0<<" "<<0<<" ";
-			            else
-			                outputFilePtr()<<1<<" "<<1<<" "<<1<<" ";
-			            // outputFilePtr()<<(Fk[PntsOfFace_[i][0]].x()+Fk[PntsOfFace_[i][1]].x()+Fk[PntsOfFace_[i][2]].x())/3.0<<" "
-			            //     <<(Fk[PntsOfFace_[i][0]].y()+Fk[PntsOfFace_[i][1]].y()+Fk[PntsOfFace_[i][2]].y())/3.0<<" "
-			            //     <<(Fk[PntsOfFace_[i][0]].z()+Fk[PntsOfFace_[i][1]].z()+Fk[PntsOfFace_[i][2]].z())/3.0<<" ";
-			            if((i+1)%2==0) outputFilePtr()<<"\n";
-			        }
-			    }
-			}
-			outputFilePtr()<<"\n</DataArray>"<<"\n";
-			outputFilePtr()<<"</CellData>"<<"\n";
-			outputFilePtr()<<"</Piece>"<<"\n";
-			outputFilePtr()<<"</UnstructuredGrid>"<<"\n";
-			outputFilePtr()<<"</VTKFile>"<<"\n";
 		}
 	}
 }
@@ -487,21 +501,11 @@ void Foam::IBOStream::writeObjData
 		OFstream os(outputFile, format, version, compression, append);
 
 		//- Write file
-		if (mesh_.time().timeIndex() == 0)
+		if (mesh_.time().timeIndex() == 0 && Pstream::master())
 		{
 		    os 	<< "Time, CG_x, CG_y, CG_z, Ux, Uy, Uz, Omega_x, Omega_y, Omega_z" << endl;
-	    	os  << mesh_.time().timeName()	<< ", "
-	    		<< CG.x()             		<< ", "
-	    		<< CG.y()             		<< ", "
-	    		<< CG.z()             		<< ", "
-				<< uTransl.x()             	<< ", "
-				<< uTransl.y()             	<< ", "
-				<< uTransl.z()             	<< ", "
-				<< uRotate.x()             	<< ", "
-				<< uRotate.y()             	<< ", "
-				<< uRotate.z()             	<< ", "<< endl; 
 		}
-	    if (mesh_.time().timeIndex() % writeInterval_ == 0)
+	    if (mesh_.time().timeIndex() % writeInterval_ == 0 && Pstream::master())
 	    {
 	    	os  << mesh_.time().timeName()	<< ", "
 	    		<< CG.x()             		<< ", "

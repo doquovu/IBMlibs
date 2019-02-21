@@ -38,17 +38,15 @@ class IBBox
 
 		point min_;
 
+		point center_;
+
 		scalar R_;
 
+		vector Ip_;
+		
 		scalar rho_;
 
 		scalar V_;
-
-		scalar Ipx_;
-
-		scalar Ipy_;
-
-		scalar Ipz_;
 
 		label nPoints_;
 
@@ -65,9 +63,6 @@ class IBBox
 		labelListList pointOfFace_;
 
 	//- Private functions
-		
-		//- Read input TXT file for 3D particles
-		void readTXTFile(word fileName, point center, scalar R);
 		
 		//- Create 2D particles automatically
 		void createBox2D(const dictionary& dict);
@@ -96,6 +91,9 @@ public:
 		{};
 
 	//- Member functions
+		const point& min() {return min_;}
+		const point& max() {return max_;}
+		
 		virtual word name();
 
 		virtual word objectType();
@@ -106,7 +104,7 @@ public:
 
 		virtual scalar V();
 
-		virtual scalar Ip();
+		virtual vector Ip();
 
 		virtual scalar R();
 

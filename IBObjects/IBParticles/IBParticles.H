@@ -49,7 +49,7 @@ class IBParticles
 		scalar V_;
 
 		//- Moment of Inertia
-		scalar Ip_;
+		vector Ip_;
 
 		//- Number of Lagrang points
 		label nPoints_;
@@ -74,7 +74,11 @@ class IBParticles
 		
 		//- Read input TXT file for 3D particles
 		void readTXTFile(word fileName, point center, scalar R);
-		
+
+		//- Distribute evenly Lagrangian points on sphere surface
+		pointField createUnitSphereEqAreaPartition(label nPoints);
+		scalar capArea(scalar angle);
+
 		//- Create 2D particles automatically
 		void createParticle2D(const dictionary& dict);
 		
@@ -112,7 +116,7 @@ public:
 
 		virtual scalar V();
 
-		virtual scalar Ip();
+		virtual vector Ip();
 
 		virtual scalar R();
 

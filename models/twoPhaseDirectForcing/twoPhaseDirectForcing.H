@@ -28,7 +28,7 @@ class twoPhaseDirectForcing
 	//- Private data
 
 		//- Reference to fvMesh
-		const fvMesh& mesh_;
+		IBdynamicFvMesh& mesh_;
 		
 		//- Number of multi-direct forcing iteration
 		label nMDF_;
@@ -51,7 +51,7 @@ public:
 		twoPhaseDirectForcing
 		(
 			// const word& name,
-			const fvMesh& mesh,
+			IBdynamicFvMesh& mesh,
 			const dictionary& dict
 		);
 
@@ -62,8 +62,10 @@ public:
 	//- Member functions
 
 		//- Return force field for momentum equation
-		virtual volVectorField ibForce();
+		virtual volVectorField ibForce(volVectorField& U);
 
+		virtual volVectorField ibForceInt();
+		
 		//- Perform multi-Firect forcing
 		virtual void multiDirectForcing
 		(

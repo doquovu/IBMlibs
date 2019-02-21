@@ -19,68 +19,72 @@ namespace Foam
 
 
 // * * * * * * * * * * * * Private Member Fuctions * * * * * * * * * * * * * //
-
-void IBBox::readTXTFile(word fileName, point center, scalar R)
-{
-	ifstream datafile(fileName.c_str());
-    if (datafile.is_open())
-    {
-        //-Read points
-        datafile>>nPoints_;
-        lPoints_.setSize(nPoints_, vector::zero);
-        scalar x;
-        scalar y;
-        scalar z;
-        for (int pointI=0;pointI<nPoints_;pointI++)
-        {
-            datafile>>x;
-            datafile>>y;
-            datafile>>z;
-
-            lPoints_[pointI].x()=R*x+center.x();
-            lPoints_[pointI].y()=R*y+center.y();
-            lPoints_[pointI].z()=R*z+center.z();
-        }
-
-        //-Read faces connectivity:
-        datafile>>nFaces_;
-        nPointsOfFaces_.setSize(nFaces_,3);
-        pointOfFace_.setSize(nFaces_);
-        label point1;
-        label point2;
-        label point3;
-        for (int i=0;i<nFaces_;i++)
-        {
-            labelList PointsOfFaceI(0);
-            datafile>>point1;
-            datafile>>point2;
-            datafile>>point3;
-
-            PointsOfFaceI.append(point1); 
-            PointsOfFaceI.append(point2);
-            PointsOfFaceI.append(point3);
-            pointOfFace_[i] = PointsOfFaceI;
-            nPointsOfFaces_[i] = pointOfFace_[i].size();
-        }
-    }
-    datafile.close();
-}
-
 void IBBox::createBox2D(const dictionary& dict)
 {
     Info<< setw(4) <<"  2D Box with parameters:"<<endl;
     max_ = dict.lookup("max");
 	min_ = dict.lookup("min");
-    scalar dx = max_.x() - min_.x();
-    scalar dy = max_.y() - min_.y();
-    scalar dz = max_.z() - min_.z();
-	R_ = dx;
-	nPoints_ = readScalar(dict.lookup("nPoints"));
-	rho_ = readScalar(dict.lookup("rho"));
-	V_ = dx*dy;
-	Ipx_ = rho_*V_(dx*dx + dy*dy)/12.0;
-    Ipy_ = Ipx_;
-    Ipz_ = Ipx_;
+    scalar lx = max_.x() - min_.x();
+    scalar ly = max_.y() - min_.y();
+    center_ = point( min_.x() + 0.5*lx, 
+                     min_.y() + 0.5*ly,
+                     min_.z());
+	R_ = 0.5*sqrt(lx*lx + ly*ly);
+    rho_ = readScalar(dict.lookup("rho"));
+    V_ = lx*ly;
+    Ip_.x() = 0.0;
+    Ip_.y() = 0.0;
+    Ip_.z() = rho_*V_*(lx*lx + ly*ly)/12.0;
+
+    //- NOTE: number of interval, not number of points
+    label nx = readScalar(dict.lookup("nx"));  
+    label ny = readScalar(dict.lookup("ny")); 
+    nPoints_ = 2 * (nx + ny);
+    lPoints_.setSize(nPoints_);
+
+    scalar dx = lx/nx;
+    scalar dy = ly/ny;
+    forAll(lPoints_, i)
+    {
+        if (i == 0)
+            lPoints_[i] = min_;
+        if ( (i!=0) and (i<=nx) )
+        {
+            lPoints_[i].x() = lPoints_[i-1].x() + dx; 
+            lPoints_[i].y() = lPoints_[i-1].y(); 
+            lPoints_[i].z() = lPoints_[i-1].z();
+        }
+        if ( (i>nx) and (i<=nx+ny) )
+        {
+            lPoints_[i].x() = lPoints_[i-1].x(); 
+            lPoints_[i].y() = lPoints_[i-1].y() + dy; 
+            lPoints_[i].z() = lPoints_[i-1].z();
+        }
+        if ( (i>nx+ny) and (i<=nx+ny+nx) )
+        {
+            lPoints_[i].x() = lPoints_[i-1].x() - dx; 
+            lPoints_[i].y() = lPoints_[i-1].y(); 
+            lPoints_[i].z() = lPoints_[i-1].z();
+        }
+        if ( (i>nx+ny+nx) and (i<nPoints_))
+        {
+            lPoints_[i].x() = lPoints_[i-1].x(); 
+            lPoints_[i].y() = lPoints_[i-1].y() - dy; 
+            lPoints_[i].z() = lPoints_[i-1].z();
+        }
+    }
+
+    nFaces_ = nPoints_;
+    nPointsOfFaces_.setSize(nFaces_);
+    pointOfFace_.setSize(nFaces_);
+    for(int i=0;i<nFaces_;i++)
+    {
+        nPointsOfFaces_[i] = 3;
+        pointOfFace_[i].setSize(3);
+        pointOfFace_[i][0] = i;
+        pointOfFace_[i][1] = (i+1)%nPoints_;
+        pointOfFace_[i][2] = nPoints_;
+    }
 }
 
 void IBBox::createBox3D(const dictionary& dict)
@@ -88,16 +92,37 @@ void IBBox::createBox3D(const dictionary& dict)
     Info<< setw(4) <<"  3D Box with parameters:"<<endl;
 	max_ = dict.lookup("max");
     min_ = dict.lookup("min");
-    scalar dx = max_.x() - min_.x();
-    scalar dy = max_.y() - min_.y();
-    scalar dz = max_.z() - min_.z();
-    R_ = dx;
-    nPoints_ = readScalar(dict.lookup("nPoints"));
+    scalar lx = max_.x() - min_.x();
+    scalar ly = max_.y() - min_.y();
+    scalar lz = max_.z() - min_.z();
+    center_ = point( min_.x() + 0.5*lx, 
+                     min_.y() + 0.5*ly,
+                     min_.z() + 0.5*lz);
+    R_ = 0.5*sqrt(lx*lx + ly*ly + lz*lz);
     rho_ = readScalar(dict.lookup("rho"));
-    V_ = dx*dy*dz;
-    Ipx_ = rho_*V_(dy*dy + dz*dz)/12.0;
-    Ipy_ = rho_*V_(dz*dz + dx*dx)/12.0;
-    Ipz_ = rho_*V_(dx*dx + dy*dy)/12.0;
+    V_ = lx*ly*lz;
+    Ip_.x() = rho_*V_*(ly*ly + lz*lz)/12.0;
+    Ip_.y() = rho_*V_*(lz*lz + lx*lx)/12.0;
+    Ip_.z() = rho_*V_*(lx*lx + ly*ly)/12.0;
+
+    //- NOTE: number of interval, not number of points
+    label nx = readScalar(dict.lookup("nx"));  
+    label ny = readScalar(dict.lookup("ny")); 
+    label nz = readScalar(dict.lookup("nz")); 
+    nPoints_ = 2*(nx + ny )*(nz + 1);
+    lPoints_.setSize(nPoints_);
+
+    // scalar dx = lx/nx;
+    // scalar dy = ly/ny;
+    // scalar dz = lz/nz;
+
+    // forAll(lPoints_, i)
+    // {
+    //     scalar zInstant(0.0);
+    //     label nxy = 2*(nx + ny);
+    //     if ((i%nxy)==0) 
+    //         zInstant = min_.z() + i*dz/nxy;
+    // }
 }
 
 void IBBox::addMotions(const dictionary& dict)
@@ -151,10 +176,8 @@ IBBox::IBBox
     R_(0.0),
     rho_(0.0),
     V_(0.0),
-    Ip_(0.0),
     nPoints_(0),   
 	lPoints_(),
-    Fk_(),
     movable_(dict.lookupOrDefault<Switch>("movable", false)),
     motions_(),
 	nFaces_(0),
@@ -162,14 +185,14 @@ IBBox::IBBox
 	pointOfFace_()
 {
     if(mesh.nGeometricD() == 2)
-        createParticle2D(dict);
+        createBox2D(dict);
     else
-        createParticle3D(dict);
+        createBox3D(dict);
 
-    Info <<"  - Center : "<< center_ <<endl;
-    Info <<"  - Radius : "<< R_ <<endl;
-    Info <<"  - nPoints: "<< nPoints_ <<endl;
-    Info <<"  - Density: "<< rho_ <<endl;
+    Info <<"  - Center    : "<< center_ <<endl;
+    Info <<"  - Hypotenuse: "<< 2.0*R_ <<endl;
+    Info <<"  - nPoints   : "<< nPoints_ <<endl;
+    Info <<"  - Density   : "<< rho_ <<endl;
 
     addMotions(dict);
 }
@@ -200,7 +223,7 @@ scalar IBBox::V()
     return V_;
 }
 
-scalar IBBox::Ip() 
+vector IBBox::Ip() 
 {
     return Ip_;
 }

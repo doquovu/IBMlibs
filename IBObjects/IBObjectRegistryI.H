@@ -9,6 +9,10 @@
 #include "fvCFD.H"
 
 // * * * * * * * * * * * * * * * Inline Functions  * * * * * * * * * * * * * //
+inline Foam::scalar Foam::IBObjectRegistry::bendingAngle()
+{
+	return bendingAngle_;
+}
 
 inline Foam::scalar Foam::IBObjectRegistry::h()
 {
@@ -78,11 +82,6 @@ inline Foam::List<labelList>& Foam::IBObjectRegistry::solidCells()
 	return solidCells_;
 }
 
-inline Foam::List<labelList>& Foam::IBObjectRegistry::solidCellsInt()
-{
-	return solidCellsInt_;
-}
-
 inline Foam::List<labelListList>& Foam::IBObjectRegistry::Shd1NeiCells()
 {
 	return Shd1NeiCells_;
@@ -138,9 +137,12 @@ inline Foam::List<labelListList>& Foam::IBObjectRegistry::pointOfFace()
 
 inline Foam::scalar Foam::IBObjectRegistry::HeavisideFunc(scalar phi)
 {
-	if (phi<=0) return 0;
-	if (phi>0) return 1;
-	return 0;
+	if (phi<=0) 
+	{
+		return 0;
+	}
+	else
+		return 1;
 }
 
 inline Foam::scalar Foam::IBObjectRegistry::LevelSetFunc
@@ -154,13 +156,21 @@ inline Foam::scalar Foam::IBObjectRegistry::LevelSetFunc
 	{
 	    return 
 	    (
-	    	sqrt(pow(p.x()-c.x(),2) + pow(p.y()-c.y(),2)) 
-	      - R_[objID]
+	    	sqrt
+			(
+				pow(p.x()-c.x(),2) 
+			  + pow(p.y()-c.y(),2)
+			) / R_[objID] - 1.0
 	    );
 	}
 	else 
 	{
-		return ( mag(p-CoG_[objID]) - R_[objID]);
+		return ( mag(p-c) / R_[objID] - 1.0);
 	}
 }
+inline const Foam::labelList& Foam::IBObjectRegistry::cellsToRefine()
+{
+	return cellsToRefine_;
+}
+
 // ************************************************************************* //

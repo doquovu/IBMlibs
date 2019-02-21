@@ -58,7 +58,7 @@ class IBObjectRegistry
 		
 		List<labelList> solidCells_;
 
-		List<labelList> solidCellsInt_;
+		List<labelList> solidCellsExt_;
 
 		List<vector> UTranslate_;
 
@@ -89,15 +89,25 @@ class IBObjectRegistry
 		List<labelList> Shd1SolidCells_;
 		List<labelList> Shd2SolidCells_;
 
+		scalar bendingAngle_;
+		scalar innerRadius_;
+	//- Data for AMR
+		labelList cellsToRefine_;
+		label maxRefinement_;
+
 protected:
 
 		scalar cellSize(label cellID);
 		
+		vector rotate(vector v, point root, scalar angle);
+		point rotate(point p, scalar angle);
+		scalar getAngle(point p);
+
 		labelListList findNeiCells(const pointField& points);
 		
 		labelList findSolidCells(label objectID, point C);
 
-		labelList findSolidCellsInt(label objectID, point C);
+		void readEnvironmentVariables();
 
 		bool isInsideRegion1(const label objectID, const point p);
 		
@@ -117,6 +127,9 @@ protected:
 		
 		void getObjectsData();
 
+		template<class T>
+    	List<T> make1DList(const List<List<T>>& twoDList);
+
 public:
 
 	TypeName("IBObjectRegistry");
@@ -134,6 +147,7 @@ public:
 
 	//- Member functions
 
+		inline scalar bendingAngle();
 		inline scalar h();
 		inline scalar dV();
 		inline scalar rhoF();
@@ -148,7 +162,6 @@ public:
 		inline List<point>& Shd2CoG();
 		inline List<labelListList>& neiCells();
 		inline List<labelList>& solidCells();
-		inline List<labelList>& solidCellsInt();
 		inline List<labelListList>& Shd1NeiCells();
 		inline List<labelListList>& Shd2NeiCells();
 		inline List<labelList>& Shd1SolidCells();
@@ -162,7 +175,11 @@ public:
 		inline List<labelListList>& pointOfFace();
 		inline scalar HeavisideFunc(scalar phi);
 		inline scalar LevelSetFunc(	label objID, point p, point c);
+		inline const labelList& cellsToRefine();
+
 		scalar volFraction(label objID, label cellID, point c);
+		void writeNeighbourCells();
+		void updateCartesianGridSize();
 
 }; // End class
 

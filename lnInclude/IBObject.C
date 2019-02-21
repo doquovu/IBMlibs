@@ -53,6 +53,7 @@ autoPtr<IBObject> IBObject::New
 
 	return autoPtr<IBObject>(dictCstrIter()(name, mesh, dict));
 }
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } //- End namespace Foam

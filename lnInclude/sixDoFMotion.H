@@ -29,13 +29,21 @@ class sixDoFMotion
 		//- Reference to Immersed object
 		IBObject& obj_;
 
+		//- Solver to calculate velocities
+		word solver_;
+		
 		//- Translational velocity
 		vector UTranslate_;
 
 		//- Rotational velocity
 		vector URotate_;
 
+		//- Constraint
+		vector constraintDir_;
+
 		void initialise();
+
+		void readConstraint(const dictionary& dict);
 
 public:
 

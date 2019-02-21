@@ -15,6 +15,9 @@
 #include "IBOStream.H"
 #include "IBObjectRegistry.H"
 #include "movingIBObjects.H"
+#include "dictionary.H"
+#include "IBdynamicFvMesh.H"
+// #include "IBAdaptiveRefineFvMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -29,13 +32,13 @@ class IBTechnique
 :
 	public IBOStream,
 	public movingIBObjects
-	// public IBObjectRegistry
+	// public IBAdaptiveRefineFvMesh
 {
 		
 	//- Private data
-	const fvMesh& mesh_;
+	IBdynamicFvMesh& mesh_;
 	
-	vector pressureGradField_;
+	const dictionary& dict_;
 
 	//- Disallow default bitwise copy construct
 	IBTechnique(const IBTechnique&);
@@ -53,7 +56,7 @@ public:
 			IBTechnique,
 			dictionary,
 			(
-				const fvMesh& mesh,
+				IBdynamicFvMesh& mesh,
 				const dictionary& dict
 			),
 			(mesh, dict)
@@ -62,14 +65,14 @@ public:
 	//- Constructor
 		IBTechnique
 		(
-			const fvMesh& mesh,
+			IBdynamicFvMesh& mesh,
 			const dictionary& dict
 		);
 		
 	//- Selector
 	static autoPtr<IBTechnique> New
 	(
-		const fvMesh& mesh,
+		IBdynamicFvMesh& mesh,
 		const dictionary& dict
 	);
 	//- Destructor
@@ -86,7 +89,9 @@ public:
 		//- Return pressure gradient field for periodic problems
 		volVectorField pressureGradField();
 
-		virtual volVectorField ibForce() = 0;
+		virtual volVectorField ibForce(volVectorField& U) = 0;
+
+		virtual volVectorField ibForceInt() = 0;
 
 		//- Perform multi-Firect forcing
 		virtual void multiDirectForcing

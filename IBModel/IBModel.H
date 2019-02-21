@@ -9,9 +9,9 @@
 #ifndef IBModel_H
 #define IBModel_H
 
-#include "fvMesh.H"
 #include "autoPtr.H"
 #include "IBTechnique.H"
+#include "IBdynamicFvMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -28,24 +28,26 @@ class IBModel
 	//- Pointer to chose approaching method
 	autoPtr<IBTechnique> techniquePtr_;
 
-	//- Disallow default bitwise copy construct
-	IBModel(const IBModel&);		
+	// //- Disallow default bitwise copy construct
+	// IBModel(const IBModel&);		
 	
-	//- Disallow default bitwise assignment
-	void operator=(const IBModel&);
+	// //- Disallow default bitwise assignment
+	// void operator=(const IBModel&);
 	
 public:
 	
 	TypeName("IBModel");
 	
-	IBModel(const fvMesh& mesh);
+	IBModel(IBdynamicFvMesh& mesh);
 
 	virtual ~IBModel()
 	{}
 
 	virtual volVectorField pressureGradientField();
 
-	virtual volVectorField ibForce();
+	virtual volVectorField ibForce(volVectorField& U);
+
+	virtual volVectorField ibForceInt();
 
 	virtual void multiDirectForcing
 	(

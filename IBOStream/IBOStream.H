@@ -30,6 +30,8 @@ class IBOStream
 
 		bool writeLagrPoints_;
 
+		bool writeShadPoints_;
+
 		bool writeLagrForces_;
 
 		bool writeIBForce_;

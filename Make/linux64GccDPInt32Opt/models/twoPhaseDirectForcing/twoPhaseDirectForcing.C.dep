@@ -740,6 +740,7 @@ $(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/scalarRange.H \
 lnInclude/movingIBObjects.H \
 $(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/IOmanip.H \
 lnInclude/IBMotion.H \
+lnInclude/IBdynamicFvMesh.H \
 $(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/addToRunTimeSelectionTable.H \
 
 
