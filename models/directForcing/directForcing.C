@@ -159,59 +159,6 @@ void Foam::directForcing::makeIbForceUhlmann
     }   
 }
 
-void Foam::directForcing::makeIbForce_forcingPoints
-(
-    volVectorField& U,
-    volVectorField& f
-)
-{
-    dimensionedScalar dT = mesh_.time().deltaT();
-
-    //- Create pointMesh from volMesh
-    pointMesh pMesh(mesh_);
-    volPointInterpolation pointData(mesh_);
-    
-    //- Interpolate velocity to pointMesh
-    pointVectorField Up = pointData.interpolate(U);
-    pointVectorField Updesire(Up);
-    
-    forAll(objects(), i)
-    {
-        if (objects()[i].objectType() == "IBSTL")
-        {
-            IBSTL& stlObject = refCast<IBSTL>(objects()[i]);
-
-            //- Set velocity at solid points to be zero
-            const labelList& sldPts = stlObject.solidPoints();
-            
-            forAll(sldPts, pointI)
-            {
-                Updesire[sldPts[pointI]] = vector::zero;
-            }
-
-            //- Interpolate velocity at virtual points and ibPoints
-            const labelList& ibPts = stlObject.forcingPoints();
-            const pointField& vtPts = stlObject.virtualPoints();
-            const labelListList& neiPts = stlObject.neighbourPoints();
-
-            forAll(vtPts, pointI)
-            {
-                vector Uvt 
-                = trilinearInterpolate(Up, vtPts[pointI], neiPts[pointI]);
-                vector Uif = vector::zero;
-                Updesire[ibPts[pointI]] = 0.5*(Uvt + Uif);
-            }
-        }
-    }
-
-    //- Interpolate velocity back to volMesh
-    pointVolInterpolation volData(pMesh, mesh_);
-    volVectorField Udesire = volData.interpolate(Updesire);
-
-    //- Caluclate ibForce using desired velocity and predicted velocity
-    f = (Udesire - U)/dT;
-}
-
 void Foam::directForcing::makeIbForce_forcingCells
 (
     volVectorField& U,
@@ -227,11 +174,7 @@ void Foam::directForcing::makeIbForce_forcingCells
         {
             IBSTL& stlObject = refCast<IBSTL>(objects()[i]);
 
-            const labelList& ibc = stlObject.ibCells();
-            const labelListList& ibnc = stlObject.ibNeiCells();
-            const labelList& vtpc = stlObject.virtualPointCells();
-            const pointField& vtp = stlObject.virtualPoints();
-            const pointField& ifp = stlObject.interfacePoints();
+
 
             //- Set velocity at solid cells to be zero
             const labelList& slc = stlObject.solidCells();
@@ -244,39 +187,45 @@ void Foam::directForcing::makeIbForce_forcingCells
             volPointInterpolation pointData(mesh_);
             pointVectorField Up = pointData.interpolate(U);
             
-            forAll(vtp, i)
+            const labelList& ibc = stlObject.ibCells();
+            const labelListList& ibnc = stlObject.ibNeiCells();
+            const labelList& vtpc = stlObject.virtualPointCells();
+            const pointField& vtp = stlObject.virtualPoints();
+            const pointField& ifp = stlObject.interfacePoints();
+            
+            forAll(vtp, pointI)
             {
                 //- Calculate velocity at virtual point,
                 //  using trilinear interpolation 
-                const labelList& curCellPoint = mesh_.cellPoints()[vtpc[i]];
-                vector Uvt = trilinearInterpolate(Up, vtp[i], curCellPoint);
+                const labelList& curCellPoint = mesh_.cellPoints()[vtpc[pointI]];
+                vector Uvt = trilinearInterpolate(Up, vtp[pointI], curCellPoint);
 
                 //- Calculate the velocity at object's surface
-                vector Uib = vector::zero;
+                vector Uib = UTranslate()[i];
 
                 //- Calculate velocity at ibCells using linear interpolate
-                scalar h1 = mag(ifp[i] - mesh_.C()[ibc[i]]);
-                scalar h2 = mag(mesh_.C()[ibc[i]] - vtp[i]);
+                scalar h1 = mag(ifp[pointI] - mesh_.C()[ibc[pointI]]);
+                scalar h2 = mag(mesh_.C()[ibc[pointI]] - vtp[pointI]);
                 scalar h = h1 + h2;
-                Udesire[ibc[i]] = h1/h*Uvt + h2/h*Uib;
+                Udesire[ibc[pointI]] = h1/h*Uvt + h2/h*Uib;
             }
             
             //- Create force field
             f = (Udesire - U)/dT;
             
             //- Spread force from ibCells to neighbour cells
-            forAll(ibc, i)
+            forAll(ibc, cellI)
             {
-                forAll(ibnc[i], neiI)
+                forAll(ibnc[cellI], neiI)
                 {
                     scalar deltaFuncValue = 
                         deltaFunc
                         (
-                            mesh_.C()[ibnc[i][neiI]], 
-                            mesh_.C()[ibc[i]]
+                            mesh_.C()[ibnc[cellI][neiI]], 
+                            mesh_.C()[ibc[cellI]]
                         );
 
-                    f[ibnc[i][neiI]] += f[ibc[i]]*deltaFuncValue*dV();
+                    f[ibnc[cellI][neiI]] += f[ibc[cellI]]*deltaFuncValue*dV();
                 }
             }
         }
@@ -329,10 +278,6 @@ Foam::volVectorField Foam::directForcing::ibForce(volVectorField& U)
     {
         makeIbForceUhlmann(U, ibForce_);
     }
-    else if (ibMethod_ == "forcingPoints")
-    {
-        makeIbForce_forcingPoints(U, ibForce_);
-    }
     else if (ibMethod_ == "forcingCells")
     {
         makeIbForce_forcingCells(U, ibForce_);
@@ -344,8 +289,7 @@ Foam::volVectorField Foam::directForcing::ibForce(volVectorField& U)
             "directForcing::ibForce()"
         )   << "Unknown directForcing method: "
             << ibMethod_<<nl<<"Valid methods are:"<<nl
-            << "("<<nl<<"Uhlmann"<<nl<<"forcingCells"<<nl
-            << "forcingPoints"<<nl<<")"<<nl
+            << "("<<nl<<"Uhlmann"<<nl<<"forcingCells"<<nl<<")"<<nl
             <<abort(FatalError);
     }
 

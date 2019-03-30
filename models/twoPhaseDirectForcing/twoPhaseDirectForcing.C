@@ -162,59 +162,6 @@ void Foam::twoPhaseDirectForcing::makeIbForceUhlmann
     }
 }
 
-void Foam::twoPhaseDirectForcing::makeIbForce_forcingPoints
-(
-    volVectorField& U, 
-    volVectorField& f
-)
-{
-    dimensionedScalar dT = mesh_.time().deltaT();
-
-    //- Interpolate value of field at point mesh
-    pointMesh pMesh(mesh_);
-    volPointInterpolation pointData(mesh_);
-
-    //- Interpolate velocity to pointMesh
-    pointVectorField Up = pointData.interpolate(U);
-    pointVectorField Updesire(Up);
-    
-    forAll(objects(), i)
-    {
-        if (objects()[i].objectType() == "IBSTL")
-        {
-            IBSTL& stlObject = refCast<IBSTL>(objects()[i]);
-
-            //- Set velocity at solid points to be zero
-            const labelList& sldPts = stlObject.solidPoints();
-            
-            forAll(sldPts, pointI)
-            {
-                Updesire[sldPts[pointI]] = vector::zero;
-            }
-
-            //- Interpolate velocity at virtual points and ibPoints
-            const labelList& ibPts = stlObject.forcingPoints();
-            const pointField& vtPts = stlObject.virtualPoints();
-            const labelListList& neiPts = stlObject.neighbourPoints();
-
-            forAll(vtPts, pointI)
-            {
-                vector Uvt = trilinearInterpolate(Up, vtPts[pointI], neiPts[pointI]);
-                vector Uif = vector::zero;
-                Updesire[ibPts[pointI]] = 0.5*(Uvt + Uif);
-            }
-        }
-    }
-
-    //- Interpolate velocity back to volMesh
-    pointVolInterpolation volData(pMesh, mesh_);
-    volVectorField Udesire = volData.interpolate(Updesire);
-
-    //- Caluclate ibForce using desired velocity and predicted velocity
-    const volScalarField& rho = mesh_.lookupObject<volScalarField>("rho");
-    f = rho*(Udesire - U)/dT;
-}
-
 void Foam::twoPhaseDirectForcing::makeIbForce_forcingCells
 (
     volVectorField& U, 
@@ -333,10 +280,6 @@ Foam::volVectorField Foam::twoPhaseDirectForcing::ibForce(volVectorField& U)
     {
         makeIbForceUhlmann(U, ibForce_);
     }
-    else if (ibMethod_ == "forcingPoints")
-    {
-        makeIbForce_forcingPoints(U, ibForce_);
-    }
     else if (ibMethod_ == "forcingCells")
     {
         makeIbForce_forcingCells(U, ibForce_);
@@ -348,8 +291,7 @@ Foam::volVectorField Foam::twoPhaseDirectForcing::ibForce(volVectorField& U)
             "twoPhaseDirectForcing::ibForce()"
         )   << "Unknown twoPhaseDirectForcing method: "
             << ibMethod_<<nl<<"Valid methods are:"<<nl
-            << "("<<nl<<"Uhlmann"<<nl<<"forcingCells"<<nl
-            << "forcingPoints"<<nl<<")"<<nl
+            << "("<<nl<<"Uhlmann"<<nl<<"forcingCells"<<nl<<")"<<nl
             <<abort(FatalError);
     }
 

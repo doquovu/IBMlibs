@@ -35,8 +35,6 @@ class IBSTL
 
 		word name_;
 		word objectType_;
-		point max_;
-		point min_;
 		point center_;
 		scalar R_;
 		vector Ip_;	
@@ -54,26 +52,19 @@ class IBSTL
 		labelListList pointOfFace_;
 		
 
-		//- Data for new ibm method: Yang, Ballaras
-			
-			labelList solidCells_;
-			labelList ibCells_;
-			labelListList ibNeiCells_;
-			labelListList vtNeiCells_;
-			labelList vtPointCells_;
+	//- Data for new ibm method: Yang, Ballaras
+		
+		//- Interface points
+		pointField ifPts_;
+		//- Virtual points
+		pointField vtPts_;
+		//- Fluid cells indicator
+		volScalarField gamma_;
 
-			//- forcing points
-				labelList ibPts_;
-			//- Interface points
-				pointField ifPts_;
-			//- Virtual points
-				pointField vtPts_;
-			//- neighbour points of virtual points
-				labelListList neiPts_;
-			//- solidPoints
-				labelList sldPts_;
-			//- Fluid cells indicator
-				volScalarField gamma_;
+		labelList solidCells_;
+		labelList ibCells_;
+		labelListList ibNeiCells_;
+		labelList vtPointCells_;
 
 	//- Private functions
 		scalar cellSize(label cellID);
@@ -84,11 +75,8 @@ class IBSTL
 		//- Create motion
 		void addMotions(const dictionary& dict);
 
-		//- Interpolation stencil
-		void makeInterpolationStencil();
-		
 		//- 27-3: Vu, New approach
-		void makeInterpolationStencilNew();
+		void makeInterpolationStencil();
 
 public:
 
@@ -109,18 +97,14 @@ public:
 
 	//- Member functions
 
+		const volScalarField& gamma() {return gamma_;}
+		const pointField& interfacePoints() {return ifPts_;}
+		const pointField& virtualPoints() {return vtPts_;}
 		const labelList& solidCells() {return solidCells_;}
 		const labelList& ibCells() {return ibCells_;}
 		const labelListList& ibNeiCells() {return ibNeiCells_;}
-		const labelListList& vtNeiCells() {return vtNeiCells_;}
 		const labelList& virtualPointCells() {return vtPointCells_;}
 
-		const labelList& forcingPoints() {return ibPts_;}
-		const pointField& interfacePoints() {return ifPts_;}
-		const pointField& virtualPoints() {return vtPts_;}
-		const labelListList& neighbourPoints() {return neiPts_;}
-		const labelList& solidPoints() {return sldPts_;}
-		const volScalarField& gamma() {return gamma_;}
 
 		virtual word name();
 		virtual word objectType();

@@ -44,12 +44,6 @@ class directForcing
 			const volVectorField& U, 
 			volVectorField& f
 		);
-		
-		void makeIbForce_forcingPoints
-		(
-			volVectorField& U, 
-			volVectorField& f
-		);
 
 		void makeIbForce_forcingCells
 		(

@@ -44,19 +44,13 @@ class twoPhaseDirectForcing
 			const volVectorField& U, 
 			volVectorField& f
 		);
-		
-		void makeIbForce_forcingPoints
-		(
-			volVectorField& U, 
-			volVectorField& f
-		);
 
 		void makeIbForce_forcingCells
 		(
 			volVectorField& U, 
 			volVectorField& f
 		);
-		
+
 	//- Disallow default bitwise copy construct
 	twoPhaseDirectForcing(const twoPhaseDirectForcing&);
 	
