@@ -49,6 +49,8 @@ public:
 
 	virtual volVectorField ibForceInt();
 
+	virtual volVectorField ibForceInt(const volVectorField& rhs);
+
 	virtual void multiDirectForcing
 	(
 		volVectorField& u,

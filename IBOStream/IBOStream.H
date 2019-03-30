@@ -86,6 +86,14 @@ public:
 			const scalar dVolume
 		);
 
+		void writeIBForces
+		(
+			const label objectID,
+			const vectorField& lForces,
+			const scalar dVolume,
+			const point CG
+		);
+
 		void writeObjVTU
 		(
 			label objectID,
@@ -102,6 +110,12 @@ public:
 			const point CG,
 			const vector uTransl,
 			const vector uRotate
+		);
+
+		void writePointSet
+		(
+			const pointField& pointSet,
+			const word name
 		);
 };
 

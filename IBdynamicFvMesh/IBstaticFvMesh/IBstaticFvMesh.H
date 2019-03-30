@@ -82,6 +82,8 @@ public:
         {
             return false;
         }
+        
+        virtual bool update();
 
         //- Dummy update function which does not change the mesh
         virtual bool update(const labelList& neighbourCells);

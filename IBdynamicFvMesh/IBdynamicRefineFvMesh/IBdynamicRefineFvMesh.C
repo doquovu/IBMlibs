@@ -1183,7 +1183,215 @@ Foam::IBdynamicRefineFvMesh::~IBdynamicRefineFvMesh()
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+bool Foam::IBdynamicRefineFvMesh::update()
+{
+    // Re-read dictionary. Choosen since usually -small so trivial amount
+    // of time compared to actual refinement. Also very useful to be able
+    // to modify on-the-fly.
+    dictionary refineDict
+    (
+        IOdictionary
+        (
+            IOobject
+            (
+                "dynamicMeshDict",
+                time().constant(),
+                *this,
+                IOobject::MUST_READ_IF_MODIFIED,
+                IOobject::NO_WRITE,
+                false
+            )
+        ).optionalSubDict(typeName + "Coeffs")
+    );
 
+    label refineInterval = readLabel(refineDict.lookup("refineInterval"));
+
+    bool hasChanged = false;
+
+    if (refineInterval == 0)
+    {
+        topoChanging(hasChanged);
+
+        return false;
+    }
+    else if (refineInterval < 0)
+    {
+        FatalErrorInFunction
+            << "Illegal refineInterval " << refineInterval << nl
+            << "The refineInterval setting in the dynamicMeshDict should"
+            << " be >= 1." << nl
+            << exit(FatalError);
+    }
+
+
+
+
+    // Note: cannot refine at time 0 since no V0 present since mesh not
+    //       moved yet.
+
+    if (time().timeIndex() > 0 && time().timeIndex() % refineInterval == 0)
+    {
+        label maxCells = readLabel(refineDict.lookup("maxCells"));
+
+        if (maxCells <= 0)
+        {
+            FatalErrorInFunction
+                << "Illegal maximum number of cells " << maxCells << nl
+                << "The maxCells setting in the dynamicMeshDict should"
+                << " be > 0." << nl
+                << exit(FatalError);
+        }
+
+        label maxRefinement = readLabel(refineDict.lookup("maxRefinement"));
+
+        if (maxRefinement <= 0)
+        {
+            FatalErrorInFunction
+                << "Illegal maximum refinement level " << maxRefinement << nl
+                << "The maxCells setting in the dynamicMeshDict should"
+                << " be > 0." << nl
+                << exit(FatalError);
+        }
+
+        const word fieldName(refineDict.lookup("field"));
+
+        const volScalarField& vFld = lookupObject<volScalarField>(fieldName);
+
+        const scalar lowerRefineLevel =
+            readScalar(refineDict.lookup("lowerRefineLevel"));
+        const scalar upperRefineLevel =
+            readScalar(refineDict.lookup("upperRefineLevel"));
+        const scalar unrefineLevel = refineDict.lookupOrDefault<scalar>
+        (
+            "unrefineLevel",
+            GREAT
+        );
+        const label nBufferLayers =
+            readLabel(refineDict.lookup("nBufferLayers"));
+
+        // Cells marked for refinement or otherwise protected from unrefinement.
+        PackedBoolList refineCell(nCells());
+
+        // Determine candidates for refinement (looking at field only)
+        selectRefineCandidates
+        (
+            lowerRefineLevel,
+            upperRefineLevel,
+            vFld,
+            refineCell
+        );
+
+        if (globalData().nTotalCells() < maxCells)
+        {
+            // Select subset of candidates. Take into account max allowable
+            // cells, refinement level, protected cells.
+            labelList cellsToRefine
+            (
+                selectRefineCells
+                (
+                    maxCells,
+                    maxRefinement,
+                    refineCell
+                )
+            );
+
+            label nCellsToRefine = returnReduce
+            (
+                cellsToRefine.size(), sumOp<label>()
+            );
+
+            if (nCellsToRefine > 0)
+            {
+                // Refine/update mesh and map fields
+                autoPtr<mapPolyMesh> map = refine(cellsToRefine);
+
+                // Update refineCell. Note that some of the marked ones have
+                // not been refined due to constraints.
+                {
+                    const labelList& cellMap = map().cellMap();
+                    const labelList& reverseCellMap = map().reverseCellMap();
+
+                    PackedBoolList newRefineCell(cellMap.size());
+
+                    forAll(cellMap, celli)
+                    {
+                        label oldCelli = cellMap[celli];
+
+                        if (oldCelli < 0)
+                        {
+                            newRefineCell.set(celli, 1);
+                        }
+                        else if (reverseCellMap[oldCelli] != celli)
+                        {
+                            newRefineCell.set(celli, 1);
+                        }
+                        else
+                        {
+                            newRefineCell.set(celli, refineCell.get(oldCelli));
+                        }
+                    }
+                    refineCell.transfer(newRefineCell);
+                }
+
+                // Extend with a buffer layer to prevent neighbouring points
+                // being unrefined.
+                for (label i = 0; i < nBufferLayers; i++)
+                {
+                    extendMarkedCells(refineCell);
+                }
+
+                hasChanged = true;
+            }
+        }
+
+
+        {
+            // Select unrefineable points that are not marked in refineCell
+            labelList pointsToUnrefine
+            (
+                selectUnrefinePoints
+                (
+                    unrefineLevel,
+                    refineCell,
+                    maxCellField(vFld)
+                )
+            );
+
+            label nSplitPoints = returnReduce
+            (
+                pointsToUnrefine.size(),
+                sumOp<label>()
+            );
+
+            if (nSplitPoints > 0)
+            {
+                // Refine/update mesh
+                unrefine(pointsToUnrefine);
+
+                hasChanged = true;
+            }
+        }
+
+
+        if ((nRefinementIterations_ % 10) == 0)
+        {
+            // Compact refinement history occassionally (how often?).
+            // Unrefinement causes holes in the refinementHistory.
+            const_cast<refinementHistory&>(meshCutter().history()).compact();
+        }
+        nRefinementIterations_++;
+    }
+
+    topoChanging(hasChanged);
+    if (hasChanged)
+    {
+        // Reset moving flag (if any). If not using inflation we'll not move,
+        // if are using inflation any follow on movePoints will set it.
+        moving(false);
+    }
+
+    return hasChanged;
+}
 bool Foam::IBdynamicRefineFvMesh::update(const labelList& neighbourCells)
 {
     // Re-read dictionary. Chosen since usually -small so trivial amount
@@ -1241,6 +1449,8 @@ bool Foam::IBdynamicRefineFvMesh::update(const labelList& neighbourCells)
 
         label maxRefinement = readLabel(refineDict.lookup("maxRefinement"));
 
+        bool isMoving = refineDict.lookupOrDefault<Switch>("movingObj", false);
+        
         if (maxRefinement <= 0)
         {
             FatalErrorInFunction
@@ -1249,6 +1459,8 @@ bool Foam::IBdynamicRefineFvMesh::update(const labelList& neighbourCells)
                 << " be > 0." << nl
                 << exit(FatalError);
         }
+
+        PackedBoolList candidateNeiCells();
 
         const word fieldName(refineDict.lookup("field"));
 
@@ -1345,32 +1557,32 @@ bool Foam::IBdynamicRefineFvMesh::update(const labelList& neighbourCells)
             }
         }
 
-
+        const volScalarField& vFld = lookupObject<volScalarField>(fieldName);
         {
-            // // Select unrefineable points that are not marked in refineCell
-            // labelList pointsToUnrefine
-            // (
-            //     selectUnrefinePoints
-            //     (
-            //         unrefineLevel,
-            //         refineCell,
-            //         maxCellField(vFld)
-            //     )
-            // );
+            // Select unrefineable points that are not marked in refineCell
+            labelList pointsToUnrefine
+            (
+                selectUnrefinePoints
+                (
+                    unrefineLevel,
+                    refineCell,
+                    maxCellField(vFld)
+                )
+            );
 
-            // label nSplitPoints = returnReduce
-            // (
-            //     pointsToUnrefine.size(),
-            //     sumOp<label>()
-            // );
+            label nSplitPoints = returnReduce
+            (
+                pointsToUnrefine.size(),
+                sumOp<label>()
+            );
 
-            // if (nSplitPoints > 0)
-            // {
-            //     // Refine/update mesh
-            //     unrefine(pointsToUnrefine);
+            if (nSplitPoints > 0)
+            {
+                // Refine/update mesh
+                unrefine(pointsToUnrefine);
 
-            //     hasChanged = true;
-            // }
+                hasChanged = true;
+            }
         }
 
 

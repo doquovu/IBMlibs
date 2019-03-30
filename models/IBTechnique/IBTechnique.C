@@ -90,11 +90,11 @@ volVectorField IBTechnique::pressureGradField()
 			gradP[celli] = vector(dP, 0, 0);
 		else if (dPDir == "vertical")
 			gradP[celli] = vector(0, dP, 0);
-		else if (dPDir == "curvilinearity")
+		else if (dPDir == "curvedChannel")
 		{
 			//- Assuming center of curve channel is (0 0 0)
 			vector position = mesh_.C()[celli];
-			vector flowDir = vector(-position.y(), position.x(), position.z());
+			vector flowDir = vector(-position.y(), position.x(), 0);
 			flowDir /= mag(flowDir);
 			gradP[celli] = dP * flowDir;
 		}
@@ -107,7 +107,7 @@ volVectorField IBTechnique::pressureGradField()
 			<< "(" <<endl
 			<< "horizontal" <<endl 
 			<< "vertical" <<endl
-			<< "curvilinearity"<<endl
+			<< "curvedChannel"<<endl
 			<<")"<<endl
 			<< exit(FatalError);
 	}

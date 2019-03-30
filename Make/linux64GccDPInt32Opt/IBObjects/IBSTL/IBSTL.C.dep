@@ -749,5 +749,17 @@ $(WM_PROJECT_DIR)/src/meshTools/lnInclude/triSurfaceRegionSearch.H \
 $(WM_PROJECT_DIR)/src/meshTools/lnInclude/triSurfaceSearch.H \
 $(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/addToRunTimeSelectionTable.H \
 $(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/IOmanip.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/pointMesh.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/MeshObject.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/MeshObject.C \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/pointBoundaryMesh.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/pointPatchList.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/pointPatch.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/pointPatchField.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/pointPatchFieldFunctions.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/pointPatchField.C \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/pointPatchFieldNew.C \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/calculatedPointPatchField.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/calculatedPointPatchField.C \
 
 

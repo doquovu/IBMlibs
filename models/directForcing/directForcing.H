@@ -70,6 +70,9 @@ public:
 		virtual volVectorField ibForce(volVectorField& U);
 		
 		virtual volVectorField ibForceInt();
+
+		// 12/3/2019 
+		virtual volVectorField ibForceInt(const volVectorField& rhs);
 		
 		//- Perform multi-Firect forcing
 		virtual void multiDirectForcing

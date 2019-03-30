@@ -199,6 +199,8 @@ public:
             return protectedCell_;
         }
 
+        virtual bool update();
+
         //- Update the mesh for both mesh motion and topology change
         virtual bool update(const labelList& neighbourCells);
 

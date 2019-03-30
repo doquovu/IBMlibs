@@ -159,6 +159,10 @@ void IBBox::addMotions(const dictionary& dict)
         Info<< setw(11) <<"  - Motions: N/A"<<nl<<endl;
     }
 }
+// void IBBox::makeInterpolationStencilNew()
+// {
+//     //- Find solid cells and mark them with gamma = 1
+// }
 //--------------------------------Constructors-------------------------------//
 
 IBBox::IBBox
@@ -195,6 +199,7 @@ IBBox::IBBox
     Info <<"  - Density   : "<< rho_ <<endl;
 
     addMotions(dict);
+    // makeInterpolationStencilNew();
 }
 
 //--------------------------------Member Functions---------------------------//

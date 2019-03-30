@@ -52,6 +52,10 @@ Foam::IBstaticFvMesh::~IBstaticFvMesh()
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+bool Foam::IBstaticFvMesh::update()
+{
+    return false;
+}
 
 bool Foam::IBstaticFvMesh::update(const labelList& neighbourCells)
 {

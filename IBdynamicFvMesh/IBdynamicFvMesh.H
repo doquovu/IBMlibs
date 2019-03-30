@@ -127,6 +127,8 @@ public:
             return true;
         }
 
+        virtual bool update() = 0;
+
         //- Update the mesh for both mesh motion and topology change
         virtual bool update(const labelList& neighbourCells) = 0;
 };

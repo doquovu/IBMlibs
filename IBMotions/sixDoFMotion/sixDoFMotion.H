@@ -38,7 +38,9 @@ class sixDoFMotion
 		vector URotate_;
 
 		//- Constraint
+		word constraintType_;
 		vector constraintDir_;
+		point constraintCenter_;
 
 		void initialise();
 

@@ -62,6 +62,15 @@ class IBBox
 		
 		labelListList pointOfFace_;
 
+		// //- Data for new forcing cell method
+		// 	labelList solidCells_;
+		// 	labelList ibCells_;
+		// 	labelListList ibNeiCells_;
+		// 	labelList vtPointCells_;
+		// 	pointField ifPts_;
+		// 	pointField vtPts_;
+		// 	volScalarField gamma_;
+
 	//- Private functions
 		
 		//- Create 2D particles automatically
@@ -72,6 +81,9 @@ class IBBox
 
 		//- Create motion
 		void addMotions(const dictionary& dict);
+
+		// //- 27-3: Vu, New approach
+		// void makeInterpolationStencilNew();
 
 public:
 
@@ -91,6 +103,13 @@ public:
 		{};
 
 	//- Member functions
+		// const labelList& solidCells() {return solidCells_;}
+		// const labelList& ibCells() {return ibCells_;}
+		// const labelListList& ibNeiCells() {return ibNeiCells_;}
+		// const labelList& virtualPointCells() {return vtPointCells_;}
+		// const pointField& interfacePoints() {return ifPts_;}
+		// const pointField& virtualPoints() {return vtPts_;}
+		
 		const point& min() {return min_;}
 		const point& max() {return max_;}
 		

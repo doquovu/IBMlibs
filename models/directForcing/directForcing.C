@@ -44,7 +44,6 @@ Foam::directForcing::directForcing
 Foam::volVectorField Foam::directForcing::ibForce(volVectorField& U)
 {
     Info<< "IBM: Calculating ibForce ..."<<endl;
-    
     volVectorField ibForce_
     (
         IOobject
@@ -241,6 +240,28 @@ Foam::volVectorField Foam::directForcing::ibForceInt()
 
     return ibForce_;
 }
+Foam::volVectorField Foam::directForcing::ibForceInt(const volVectorField& rhs)
+{
+    Info<< "IBM: Calculating ibForceInt..."<<endl;
+    
+    volVectorField ibForce_
+    (
+        IOobject
+        (
+            "ibForce",
+            mesh_.time().timeName(),
+            mesh_,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        mesh_,
+        dimensionedVector("ibForce",
+                dimensionSet(1,-2,-2,0,0,0,0), vector(0,0,0))
+    );   
+    
+    return ibForce_;
+}
+
 void Foam::directForcing::multiDirectForcing
 (
     volVectorField& u,
@@ -278,19 +299,19 @@ void Foam::directForcing::update()
 
     writeNeighbourCells();
     // //- Refine mesh following neighbour cells indicator
-    // mesh_.update(cellsToRefine());
+    mesh_.update(cellsToRefine());
 
-    // //- Update neighbour cells after mesh refinement
-    // for(int i=0; i<nObjects(); i++)
-    // {
-    //     neiCells()[i] = findNeiCells(LPoints()[i]);
-    // }
+    //- Update neighbour cells after mesh refinement
+    for(int i=0; i<nObjects(); i++)
+    {
+        neiCells()[i] = findNeiCells(LPoints()[i]);
+    }
 
     // //- Update h and dV (only do 1 time at timeIndex = 1)
-    // updateCartesianGridSize();
+    updateCartesianGridSize();
 
-    // //- Write neighbour cells indicator
-    // writeNeighbourCells();
+    //- Write neighbour cells indicator
+    writeNeighbourCells();
 }
 
 void Foam::directForcing::write()
@@ -299,8 +320,17 @@ void Foam::directForcing::write()
     {
         writeLagrPoints(objI, LPoints()[objI]);
         writeLagrForces(objI, LPoints()[objI], Fk_[objI]);
-        writeIBForces(objI, Fk_[objI], dV());
         writeObjData(objI, CoG()[objI], UTranslate()[objI], URotate()[objI]);
+
+        if (bendingAngle() == 0)
+        {
+            writeIBForces(objI, Fk_[objI], dV());
+        }
+        else
+        {
+            writeIBForces(objI, Fk_[objI], dV(), CoG()[objI]);
+        }
+
         writeObjVTU
         (
             objI, 

@@ -68,30 +68,30 @@ void Foam::IBOStream::writeLagrPoints
 			 || mesh_.time().outputTime()
 		   )
 		{
-			Info<< "IBM: Writing Lagrangian points of object " <<objectID+1<<endl;
-
-			fileName outputDir(fileName::null); 
-
-			if(Pstream::parRun())
-			{
-			    outputDir = mesh_.time().path()/".."/"outputData"/"LagrPoints";
-			}
-			else
-			{
-			    outputDir = mesh_.time().path()/"outputData"/"LagrPoints";
-			}
-
-			mkDir (outputDir);
-			
-			autoPtr<OFstream> outputFilePtr;
-			
-			word outputFile = "LagrPoints_Object-"+Foam::name(objectID+1)
-								+"_Time-"+Foam::name(mesh_.time().timeIndex())+".csv";
-		    
-		    outputFilePtr.reset(new OFstream(outputDir/outputFile));
-		    
 			if (Pstream::master())
 		    {
+				Info<< "IBM: Writing Lagrangian points of object " <<objectID+1<<endl;
+
+				fileName outputDir(fileName::null); 
+
+				if(Pstream::parRun())
+				{
+					outputDir = mesh_.time().path()/".."/"outputData"/"LagrPoints";
+				}
+				else
+				{
+					outputDir = mesh_.time().path()/"outputData"/"LagrPoints";
+				}
+
+				mkDir (outputDir);
+				
+				autoPtr<OFstream> outputFilePtr;
+				
+				word outputFile = "LagrPoints_Object-"+Foam::name(objectID+1)
+									+"_Time-"+Foam::name(mesh_.time().timeIndex())+".csv";
+				
+				outputFilePtr.reset(new OFstream(outputDir/outputFile));
+		    
 				outputFilePtr() << "X, Y, Z" << endl;
 		    
 		    	forAll(lPoints, i)
@@ -116,34 +116,34 @@ void Foam::IBOStream::writeShadPoints
 			 || mesh_.time().outputTime()
 		   )
 		{
-			Info<< "IBM: Writing Shadow points of object " <<objectID+1<< endl;
-
-			fileName outputDir(fileName::null); 
-
-			if(Pstream::parRun())
-			{
-			    outputDir = mesh_.time().path()/".."/"outputData"/"ShadPoints";
-			}
-			else
-			{
-			    outputDir = mesh_.time().path()/"outputData"/"ShadPoints";
-			}
-
-			mkDir (outputDir);
-			
-			autoPtr<OFstream> outputFilePtr1;
-			autoPtr<OFstream> outputFilePtr2;
-			
-			word outputFile1 = "Shad1Points_Object-"+Foam::name(objectID+1)
-								+"_Time-"+Foam::name(mesh_.time().timeIndex())+".csv";
-			word outputFile2 = "Shad2Points_Object-"+Foam::name(objectID+1)
-								+"_Time-"+Foam::name(mesh_.time().timeIndex())+".csv";
-		    
-		    outputFilePtr1.reset(new OFstream(outputDir/outputFile1));
-		    outputFilePtr2.reset(new OFstream(outputDir/outputFile2));
-		    
 			if (Pstream::master())
 		    {
+				Info<< "IBM: Writing Shadow points of object " <<objectID+1<< endl;
+
+				fileName outputDir(fileName::null); 
+
+				if(Pstream::parRun())
+				{
+					outputDir = mesh_.time().path()/".."/"outputData"/"ShadPoints";
+				}
+				else
+				{
+					outputDir = mesh_.time().path()/"outputData"/"ShadPoints";
+				}
+
+				mkDir (outputDir);
+				
+				autoPtr<OFstream> outputFilePtr1;
+				autoPtr<OFstream> outputFilePtr2;
+				
+				word outputFile1 = "Shad1Points_Object-"+Foam::name(objectID+1)
+									+"_Time-"+Foam::name(mesh_.time().timeIndex())+".csv";
+				word outputFile2 = "Shad2Points_Object-"+Foam::name(objectID+1)
+									+"_Time-"+Foam::name(mesh_.time().timeIndex())+".csv";
+				
+				outputFilePtr1.reset(new OFstream(outputDir/outputFile1));
+				outputFilePtr2.reset(new OFstream(outputDir/outputFile2));
+		    
 				outputFilePtr1() << "X, Y, Z" << endl;
 				outputFilePtr2() << "X, Y, Z" << endl;
 				
@@ -263,6 +263,75 @@ void Foam::IBOStream::writeIBForces
 	    	os  << mesh_.time().timeName() << ", "
 	    		<< ibForce.x()             << ", "
 	    		<< ibForce.y()             << ", "
+	    		<< ibForce.z()             << ", "
+	    		<< magForce				   << endl; 
+	    }
+	}
+}
+void Foam::IBOStream::writeIBForces
+(
+	const label objectID,
+	const vectorField& lForces,
+	const scalar dVolume,
+	const point CG
+)
+{
+	if(writeIBForce_)
+	{
+		//- Calculate force acting upon object's surface
+	    vector ibForce(vector::zero);
+	    
+	    forAll(lForces, i)
+	    {
+	        ibForce -= lForces[i]*dVolume;
+	    }
+
+	    Info<< "IBM: Writing ibForces"<< nl
+	    	<< "    Object-" << objectID+1 <<" : "<<ibForce<<endl;
+
+	    //- Write
+    	//- Create dir
+		fileName outputDir(fileName::null); 
+			
+		if(Pstream::parRun())
+		{
+		    outputDir = mesh_.time().path()/".."/"outputData"/"Forces";
+		}
+		else
+		{
+		    outputDir = mesh_.time().path()/"outputData"/"Forces";
+		}
+		
+		mkDir (outputDir);
+		
+		//-Create file
+		const fileName outputFile(outputDir/"Forces_Object-"
+									+Foam::name(objectID+1)+".csv");
+		IOstream::streamFormat format=IOstream::ASCII;
+		IOstream::versionNumber version=IOstream::currentVersion;
+		IOstream::compressionType compression=IOstream::UNCOMPRESSED;
+
+		const bool append(true);
+
+		OFstream os(outputFile, format, version, compression, append);
+
+		//- Write file
+		scalar magForce = mag(ibForce);
+		vector R = vector(-CG.x(), -CG.y(), 0);
+		vector T = vector(R.y(), -R.x(), 0);
+		R /= mag(R);
+		T /= mag(T);
+		scalar Ft = ibForce & T;
+		scalar Fr = ibForce & R;
+		if (mesh_.time().timeIndex() == 0 && Pstream::master())
+		{
+		    os 	<< "Time, Ft, Fr, Fz, magF" << endl;
+		}
+	    if (mesh_.time().timeIndex() % writeInterval_ == 0 && Pstream::master())
+	    {
+	    	os  << mesh_.time().timeName() << ", "
+	    		<< Ft             		   << ", "
+	    		<< Fr             		   << ", "
 	    		<< ibForce.z()             << ", "
 	    		<< magForce				   << endl; 
 	    }
@@ -495,7 +564,7 @@ void Foam::IBOStream::writeObjData
 		//- Write file
 		if (mesh_.time().timeIndex() == 0 && Pstream::master())
 		{
-		    os 	<< "Time, CG_x, CG_y, CG_z, Ux, Uy, Uz, Omega_x, Omega_y, Omega_z" << endl;
+		    os 	<< "Time, CG_x, CG_y, CG_z, Ux, Uy, Uz, Omega_x, Omega_y, Omega_z, R" << endl;
 		}
 	    if (mesh_.time().timeIndex() % writeInterval_ == 0 && Pstream::master())
 	    {
@@ -508,9 +577,49 @@ void Foam::IBOStream::writeObjData
 				<< uTransl.z()             	<< ", "
 				<< uRotate.x()             	<< ", "
 				<< uRotate.y()             	<< ", "
-				<< uRotate.z()             	<< ", "<< endl; 
+				<< uRotate.z()             	<< ", "
+				<< Foam::sqrt(Foam::pow(CG.x(),2)+Foam::pow(CG.y(),2))<<endl; 
 	    }
 	}
+}
+
+void Foam::IBOStream::writePointSet
+(
+	const pointField& pointSet,
+	const word name
+)
+{
+	Info<<"IBM: Writing point set "<<name<<endl;
+
+	//- Create dir
+		fileName outputDir(fileName::null); 
+			
+		if(Pstream::parRun())
+		{
+			outputDir = mesh_.time().path()/".."/"outputData"/"pointSet";
+		}
+		else
+		{
+			outputDir = mesh_.time().path()/"outputData"/"pointSet";
+		}
+		
+		mkDir (outputDir);
+		
+	//- Create file
+		autoPtr<OFstream> outputFilePtr;
+				
+		word outputFile = name+"_Time-"+Foam::name(mesh_.time().timeIndex())+".csv";
+		
+		outputFilePtr.reset(new OFstream(outputDir/outputFile));
+	
+		outputFilePtr() << "X, Y, Z" << endl;
+	
+		forAll(pointSet, i)
+		{	
+			outputFilePtr() <<pointSet[i].x()<<", "
+						    <<pointSet[i].y()<<", "
+							<<pointSet[i].z()<< endl;
+		}
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

@@ -53,7 +53,6 @@ void Foam::movingIBObjects::calcUBoundary()
 
 void  Foam::movingIBObjects::movePoints()
 {
-
     for(int i=0; i<nObjects(); i++)
     {
         const scalar dT = mesh_.time().deltaTValue();
@@ -62,25 +61,25 @@ void  Foam::movingIBObjects::movePoints()
             Info<< "IBM: Moving immersed object "<<i+1
                 <<" named "<<objects()[i].name()<<endl;
 
-            //- Move Lagrang point according to its velocity
-            CoG()[i] += dT*UTranslate()[i];
-            forAll(LPoints()[i], pI)
+            if (bendingAngle() == 0)
             {
-                LPoints()[i][pI] += dT*uBoundary_[i][pI];
-            }
-            Info<<"    New CoG     = "<<CoG()[i]<<endl;
-            Info<<"    Ut Object "<<i+1<<" = "<<UTranslate()[i]<<endl;
-            Info<<"    Ur Object "<<i+1<<" = "<<URotate()[i]<<endl;
-
-            //- HANLE MOTION THROUGH PERIODIC BOUNDARY
-            if (enableShadows()[i])
-            {
-                Info<< "    Moving shadow of "<<objects()[i].name()<<nl<<endl;
-                if (bendingAngle() == 0)
+                //- Move Lagrang point according to its velocity
+                CoG()[i] += dT*UTranslate()[i];
+                forAll(LPoints()[i], pI)
                 {
+                    LPoints()[i][pI] += dT*uBoundary_[i][pI];
+                }
+                Info<<"    New CoG     = "<<CoG()[i]<<endl;
+                Info<<"    Ut Object "<<i+1<<" = "<<UTranslate()[i]<<endl;
+                Info<<"    Ur Object "<<i+1<<" = "<<URotate()[i]<<endl;
+
+                //- HANLE MOTION THROUGH PERIODIC BOUNDARY
+                if (enableShadows()[i])
+                {
+                    Info<< "    Moving shadow of "<<objects()[i].name()<<nl<<endl;
                     Shd1CoG()[i] += dT*UTranslate()[i];
                     Shd2CoG()[i] += dT*UTranslate()[i];
-                    forAll(LPoints()[i], pI)
+                    forAll(Shd1LPoints()[i], pI)
                     {
                         Shd1LPoints()[i][pI] += dT*uBoundary_[i][pI];
                         Shd2LPoints()[i][pI] += dT*uBoundary_[i][pI];
@@ -165,15 +164,123 @@ void  Foam::movingIBObjects::movePoints()
                         }
                     }
                 }
-                else
+            }
+            else
+            {
+                //- Move Lagrang point according to its velocity
+                CoG()[i] += dT*UTranslate()[i];
+                forAll(LPoints()[i], pI)
                 {
+                    LPoints()[i][pI] += dT*uBoundary_[i][pI];
+                }
+                Info<<"    New CoG     = "<<CoG()[i]<<endl;
+                Info<<"    Ut Object "<<i+1<<" = "<<UTranslate()[i]<<endl;
+                Info<<"    Ur Object "<<i+1<<" = "<<URotate()[i]<<endl;
 
+                //- HANLE MOTION THROUGH PERIODIC BOUNDARY
+                if (enableShadows()[i])
+                {
+                    Info<< "    Moving shadow of "<<objects()[i].name()<<nl<<endl;
+                   
+                    // Shd1CoG()[i] += dT*rotate(UTranslate()[i], CoG()[i], -bendingAngle());
+                    // Shd2CoG()[i] += dT*rotate(UTranslate()[i], CoG()[i], bendingAngle());
+                    // forAll(Shd1LPoints()[i], pI)
+                    // {
+                    //     Shd1LPoints()[i][pI] += dT*rotate(uBoundary_[i][pI], LPoints()[i][pI], -bendingAngle());
+                    //     Shd2LPoints()[i][pI] += dT*rotate(uBoundary_[i][pI], LPoints()[i][pI], bendingAngle());
+                    // }
+                    Shd1CoG()[i] = rotate(CoG()[i], -bendingAngle());
+                    Shd2CoG()[i] = rotate(CoG()[i],  bendingAngle());
+
+                    forAll(Shd1LPoints()[i], pI)
+                    {
+                        Shd1LPoints()[i][pI] = rotate(LPoints()[i][pI], -bendingAngle());
+                        Shd2LPoints()[i][pI] = rotate(LPoints()[i][pI],  bendingAngle());
+                    }
+
+                    if (isInsideRegion1(i, CoG()[i]))
+                    {
+                        Shd1NeiCells()[i].clear();
+                        Shd2NeiCells()[i].clear();
+                        Shd1SolidCells()[i].clear();
+                        Shd2SolidCells()[i].clear();
+                        neiCells()[i] = findNeiCells(LPoints()[i]);
+                        solidCells()[i] = findSolidCells(i, CoG()[i]);
+                        continue;
+                    }
+                    else if (isInsideRegion2(i, CoG()[i]))
+                    {
+                        if (isInsideRegion3(i, Shd1CoG()[i]))
+                        {
+                            Shd1NeiCells()[i] = findNeiCells(Shd1LPoints()[i]);
+                            Shd2NeiCells()[i].clear();
+                            Shd1SolidCells()[i] = findSolidCells(i, Shd1CoG()[i]);
+                            Shd2SolidCells()[i].clear();
+                            neiCells()[i] = findNeiCells(LPoints()[i]);
+                            solidCells()[i] = findSolidCells(i, CoG()[i]);
+                            continue;
+                        }
+                        else
+                        {
+                            Shd1NeiCells()[i].clear();
+                            Shd2NeiCells()[i] = findNeiCells(Shd2LPoints()[i]);
+                            Shd1SolidCells()[i].clear();
+                            Shd2SolidCells()[i] = findSolidCells(i, Shd2CoG()[i]);
+                            neiCells()[i] = findNeiCells(LPoints()[i]);
+                            solidCells()[i] = findSolidCells(i, CoG()[i]);
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        if (isInsideRegion2(i, Shd1CoG()[i]))
+                        {
+                            swap(CoG()[i], Shd1CoG()[i]);
+                            swap(Shd1CoG()[i], Shd2CoG()[i]);
+                            Shd1CoG()[i] = rotate(CoG()[i], -bendingAngle());
+
+                            for (int pI=0; pI<LPoints()[i].size(); pI++)
+                            {
+                                swap(LPoints()[i][pI], Shd1LPoints()[i][pI]);
+                                swap(Shd1LPoints()[i][pI], Shd2LPoints()[i][pI]);
+                                Shd1LPoints()[i][pI] = rotate(LPoints()[i][pI], -bendingAngle());
+                            }
+                                
+                            Shd1NeiCells()[i].clear();
+                            Shd2NeiCells()[i] = findNeiCells(Shd2LPoints()[i]);
+                            Shd1SolidCells()[i].clear();
+                            Shd2SolidCells()[i] = findSolidCells(i, Shd2CoG()[i]);
+                            neiCells()[i] = findNeiCells(LPoints()[i]);
+                            solidCells()[i] = findSolidCells(i, CoG()[i]);
+                            continue;
+                        }
+                        else if (isInsideRegion2(i, Shd2CoG()[i]))
+                        {
+                            swap(CoG()[i], Shd2CoG()[i]);
+                            swap(Shd2CoG()[i], Shd1CoG()[i]);
+                            Shd2CoG()[i] = rotate(CoG()[i], bendingAngle());
+
+                            for (int pI=0; pI<LPoints()[i].size(); pI++)
+                            {
+                                swap(LPoints()[i][pI], Shd2LPoints()[i][pI]);
+                                swap(Shd2LPoints()[i][pI], Shd1LPoints()[i][pI]);
+                                Shd2LPoints()[i][pI] = rotate(LPoints()[i][pI], bendingAngle());
+                            }
+
+                            Shd1NeiCells()[i] = findNeiCells(Shd1LPoints()[i]);
+                            Shd2NeiCells()[i].clear();
+                            Shd1SolidCells()[i] = findSolidCells(i, Shd1CoG()[i]);
+                            Shd2SolidCells()[i].clear();
+                            neiCells()[i] = findNeiCells(LPoints()[i]);
+                            solidCells()[i] = findSolidCells(i, CoG()[i]);
+                            continue;
+                        }
+                    }
                 }
             }
 
             neiCells()[i] = findNeiCells(LPoints()[i]);
             solidCells()[i] = findSolidCells(i, CoG()[i]);
-            // solidCellsInt()[i] = findSolidCellsInt(i, CoG()[i]);
         }
     }
 }
@@ -477,6 +584,7 @@ Foam::vector Foam::movingIBObjects::objWallRepulsive(label objID)
 
     if(calcRepulsive_)
     {
+        Info<<"IBM: Calculating wall repulsive force for "<<object.name()<<endl;
         forAll(mesh_.boundary(), patchI)
         {
             const polyPatch& pp = mesh_.boundaryMesh()[patchI];

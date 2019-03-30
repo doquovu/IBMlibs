@@ -27,8 +27,28 @@ void sixDoFMotion::readConstraint(const dictionary& dict)
 {
 	if (dict.found("constraint"))
 	{
-		constraintDir_ = dict.subDict("constraint").lookup("axis");
-		Info<<"FOUND CONSTRAINT MOTION: "<<constraintDir_<<endl;
+		const dictionary& constraintDir = dict.subDict("constraint");
+		word constraintType = constraintDir.lookup("type");
+		constraintType_ = constraintType;
+		if (constraintType_ == "axis")
+		{
+			constraintDir_ = constraintDir.lookup("axis");
+			constraintCenter_ = point::zero;
+			Info<<"FOUND CONSTRAINT MOTION ALONG AXIS: "<<constraintDir_<<endl;
+		}
+		else if (constraintType_ == "point")
+		{
+			constraintCenter_ = constraintDir.lookup("point");
+			constraintDir_ = vector::zero;
+			Info<<"FOUND CONSTRAINT MOTION AROUND CENTER: "<<constraintDir_<<endl;
+		}
+		else 
+		FatalErrorIn
+    	(
+    		"sixDoFMotion::readConstraint(const dictionary& )"
+    	)	<< "Valid motion constraints are " << endl
+    		<< "("<<endl<<"axis"<<endl<<"point"<<endl<<")"<<endl
+    		<<exit(FatalError);
 	}
 }
 //---------------------------------Constructors------------------------------//
@@ -44,7 +64,8 @@ sixDoFMotion::sixDoFMotion
 	solver_(dict.lookup("solver")),
 	UTranslate_(),
 	URotate_(),
-	constraintDir_(vector::zero)
+	constraintDir_(vector::zero),
+	constraintCenter_(point::zero)
 {
 	initialise();
 	readConstraint(dict);
@@ -77,8 +98,8 @@ void sixDoFMotion::updateMotion
 	= 
 		  uTransl 
 		+ dT*( - rhoF*force_/(obj_.V()*(obj_.rho()-rhoF)) 
-		+ repulsiveForce /(obj_.V()*(obj_.rho() - rhoF))
-		+ g );
+			   + repulsiveForce /(obj_.V()*(obj_.rho() - rhoF))
+			   + g );
 
 	vector fxR = vector::zero;
 	forAll(lPoints, pointI)
@@ -148,12 +169,17 @@ void sixDoFMotion::updateMotion
     		<< "Please check again"<<endl
     		<<exit(FatalError);
     }
-
-	if (constraintDir_ != vector::zero)
+	if (constraintType_ == "axis")
 	{
 		uTransl = (uTransl & constraintDir_)*constraintDir_;
 	}
-	
+	else if (constraintType_ == "point")
+	{
+		vector R = center - constraintCenter_;
+		vector constraintDir_ = vector(-R.y(), R.x(), 0);
+		constraintDir_ /= mag(constraintDir_);
+		uTransl = (uTransl & constraintDir_)*constraintDir_;
+	}
 }
 
 void sixDoFMotion::updateMotion
@@ -192,7 +218,6 @@ void sixDoFMotion::updateMotion
 	  		+ obj_.V()*(obj_.rho()-rhoF)*g 
 	  		+ repulsiveForce 
 	  	);
-	
 	vector fxR = vector::zero;
 	forAll(lPoints, pointI)
 	{
@@ -262,9 +287,15 @@ void sixDoFMotion::updateMotion
     		<< "Please check again"<<endl
     		<<exit(FatalError);
     }
-
-	if (constraintDir_ != vector::zero)
+	if (constraintType_ == "axis")
 	{
+		uTransl = (uTransl & constraintDir_)*constraintDir_;
+	}
+	else if (constraintType_ == "point")
+	{
+		vector R = center - constraintCenter_;
+		vector constraintDir_ = vector(-R.y(), R.x(), 0);
+		constraintDir_ /= mag(constraintDir_);
 		uTransl = (uTransl & constraintDir_)*constraintDir_;
 	}
 }

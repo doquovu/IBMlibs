@@ -272,26 +272,9 @@ pointField IBParticles::createUnitSphereEqAreaPartition(label nPoints)
         }
     
     //9. Write VTU
-        // nFaces_ = 2*nPoints_ - 4;
-        // nPointsOfFaces_.setSize(nFaces_, 3);
-        // pointOfFace_.setSize(nFaces_);
-        // for (int i=0; i<n+2; i++)
-        // {
-        //     labelList pofi(3);
-        //     forAll(pointLatitudes[i], j)
-        //     {
-        //         if (i==0)
-        //         {
-        //             continue;
-        //         }
-        //         if (i==1)
-        //         {
-        //             pofi[0] = points[i][j];
-        //             pofi[1] = points[i][(j+1)%pointLatitudes[i].size()];
-        //             pofi[2] = points[i-1];
-        //         }
-        //     }
-        // }
+        nFaces_ = 2*nPoints_ - 4;
+        nPointsOfFaces_.setSize(nFaces_, 3);
+
     return allPoints;
 }
 
@@ -363,8 +346,15 @@ IBParticles::IBParticles
 {
     if(mesh.nGeometricD() == 2)
         createParticle2D(dict);
-    else
+    else if (mesh.nGeometricD() == 3)
         createParticle3D(dict);
+    else 
+        FatalErrorIn
+    	(
+    		"IBParticle::IBParticle(const word&, const fvMesh&,"
+			"const dictionary&)" 
+    	)	<< "The mesh is neither 2D nor 3D " << endl
+    		<<exit(FatalError);
 
     Info <<"  - Center : "<< center_ <<endl;
     Info <<"  - Radius : "<< R_ <<endl;

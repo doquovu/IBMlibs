@@ -10,6 +10,7 @@
 #include "labelList.H"
 #include "IBBox.H"
 #include "vectorTools.H"
+#include "IBSTL.H"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -70,11 +71,14 @@ Foam::point Foam::IBObjectRegistry::rotate(point p, scalar angle)
 }
 Foam::scalar Foam::IBObjectRegistry::getAngle(point p)
 {
-    vector R = p/(mag(p));
+    vector pProjectToXOY = vector(p.x(), p.y(), 0);
+    vector R = pProjectToXOY/(mag(pProjectToXOY));
     vector i(1, 0, 0);
     scalar alpha = Foam::vectorTools::radAngleBetween(R, i);
-
-    return alpha;
+    if (p.y() >= 0)
+        return alpha;
+    else 
+        return (-alpha);
 }
 Foam::labelListList Foam::IBObjectRegistry::findNeiCells
 (
@@ -113,7 +117,7 @@ Foam::labelList Foam::IBObjectRegistry::findSolidCells
     if (objects_[objectID].objectType() == "IBParticles")
     {
         // scalar span = R_[objectID]+h_/sqrt(2.0);
-        scalar span = R_[objectID] + 1.5*h_;
+        scalar span = R_[objectID] ;//+ 1.5*h_;
         forAll(mesh_.C(), cellI)
         { 
             scalar dR = mag(mesh_.C()[cellI] - C);
@@ -158,12 +162,12 @@ void Foam::IBObjectRegistry::readEnvironmentVariables()
     if (transportProperties_.found("phases"))
     {
         Pair<word> phases = transportProperties_.lookup("phases");
-        scalar rho1 = readScalar(transportProperties_.subDict(phases[0]).lookup("rho"));
-        scalar rho2 = readScalar(transportProperties_.subDict(phases[1]).lookup("rho"));
-        if (rho1 > rho2)
-            rhoF_ = rho1;
+        dimensionedScalar rho1("rho", dimDensity, transportProperties_.subDict(phases[0]).lookup("rho"));
+        dimensionedScalar rho2("rho", dimDensity, transportProperties_.subDict(phases[1]).lookup("rho"));
+        if (rho1.value() > rho2.value())
+            rhoF_ = rho1.value();
         else 
-            rhoF_ = rho2;
+            rhoF_ = rho2.value();
 
         uniformDimensionedVectorField gravity
         (
@@ -290,8 +294,8 @@ bool Foam::IBObjectRegistry::isInsideRegion3(const label objectID, const point p
         scalar R = R_[objectID] + 2.0*h_;
         scalar dAngle = R/innerRadius_;
 
-        if (    anglePosition < -dAngle 
-             && anglePosition > (bendingAngle_ + dAngle) 
+        if (    anglePosition > -dAngle 
+             && anglePosition < (bendingAngle_ + dAngle) 
              && p.z() > min.z()     
              && p.z() < max.z() )
             return true;
@@ -349,14 +353,41 @@ void Foam::IBObjectRegistry::detectCyclicBoundary()
             }
             else
             {
-                const cyclicPolyPatch& cpp2 = cpp1.neighbPatch();
-
-                const vector n1 = cpp1.faceNormals()[0];
-                const vector n2 = -cpp2.faceNormals()[0];
-                bendingAngle_ = Foam::vectorTools::radAngleBetween(n1,n2);
-                Info<< "  Curved channel with bending angle = "
-                    <<bendingAngle_*180.0/3.1415<<" deg ("
-                    <<bendingAngle_<<" rad)"<<nl<<endl;
+                if (!Pstream::parRun())
+                {
+                    const cyclicPolyPatch& cpp2 = cpp1.neighbPatch();
+                    const vector n1 = cpp1.faceNormals()[0];
+                    const vector n2 = -cpp2.faceNormals()[0];
+                    bendingAngle_ = Foam::vectorTools::radAngleBetween(n1,n2);
+                    Info<< "  Curved channel with bending angle = "
+                        <<bendingAngle_*180.0/3.1415<<" deg ("
+                        <<bendingAngle_<<" rad)"<<nl<<endl;
+                }
+                else
+                {
+                    dictionary blockMeshDict
+                    (
+                        IOdictionary
+                        (
+                            IOobject
+                            (
+                                "blockMeshDict",
+                                mesh_.time().system(),
+                                mesh_,
+                                IOobject::MUST_READ,
+                                IOobject::NO_WRITE,
+                                false
+                            )
+                        )
+                    );
+                    scalar bendingAngleDeg = readScalar(blockMeshDict.subDict("mesh").lookup("bendingAngle"));
+                    bendingAngle_ = bendingAngleDeg*3.1415/180;
+                    // bendingAngle_ = 3*3.1415/180;
+                    Info<< "  Curved channel with bending angle = "
+                        <<bendingAngleDeg<<" deg ("
+                        <<bendingAngle_<<" rad)"<<nl<<endl;
+                }
+            
             }
             return;
         }
@@ -554,7 +585,16 @@ void Foam::IBObjectRegistry::getObjectsData()
         nFaces_[i]      = objects_[i].nFaces();
         LPoints_[i]     = objects_[i].lPoints();
         neiCells_[i]    = findNeiCells(LPoints_[i]);
-        solidCells_[i]  = findSolidCells(i,CoG_[i]);
+        if (objects_[i].objectType() == "IBSTL")
+        {
+            IBSTL& ibstl_ = refCast<IBSTL>
+			(
+			    objects_[i]
+			);
+            solidCells_[i] = ibstl_.solidCells();    
+        }
+        else
+            solidCells_[i]  = findSolidCells(i,CoG_[i]);
         URotate_[i]         = objects_[i].rotationalVelocity();
         UTranslate_[i]      = objects_[i].translationalVelocity();
         nPointsOfFaces_[i]  = objects_[i].nPointsOfFaces();

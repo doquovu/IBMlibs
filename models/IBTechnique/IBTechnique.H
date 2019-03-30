@@ -93,6 +93,9 @@ public:
 
 		virtual volVectorField ibForceInt() = 0;
 
+		// 12/3/2019 
+		virtual volVectorField ibForceInt(const volVectorField& rhs) = 0;
+
 		//- Perform multi-Firect forcing
 		virtual void multiDirectForcing
 		(

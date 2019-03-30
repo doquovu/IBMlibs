@@ -2,12 +2,12 @@
        +===   /===\  ==   ===   Hanoi University of Science and Technology
        ||  \\     \\ ||  //     School of Transportation Engineering
        ||   ))     )) | //      Computational Engineering Group
-       ||  //    \\/  |//       IBMlibs - twoPhaseDirectForcing class
+       ||  //    \\/  |//       IBMlibs - directForcingBallaras class
        +===   \===\\ =//        OpenFOAM 5.0 - 13/4/2018
 \*---------------------------------------------------------------------------*/
 
-#ifndef twoPhaseDirectForcing_H
-#define twoPhaseDirectForcing_H
+#ifndef directForcingBallaras_H
+#define directForcingBallaras_H
 
 #include "IBTechnique.H"
 #include "IBObject.H"
@@ -18,10 +18,10 @@
 namespace Foam
 {
 /*---------------------------------------------------------------------------*\
-					 Class twoPhaseDirectForcing declaration
+							Class IBModel declaration
 \*---------------------------------------------------------------------------*/
 
-class twoPhaseDirectForcing
+class directForcingBallaras
 : 
 	public IBTechnique
 {
@@ -35,20 +35,55 @@ class twoPhaseDirectForcing
 		
 		List<vectorField> Fk_;
 
+	vector linearInterpolate
+	(
+		const point p1,
+		const point p2,
+		const point target,
+		const vector v1,
+		const vector v2
+	);
+
+	vector bilinearInterpolate
+	(
+		const pointVectorField& phi,
+		const point& target,
+		const labelList& sourceLabel
+	);
+
+	vector trilinearInterpolate
+	(
+		const pointVectorField& phi,
+		const point& target,
+		const labelList& sourceLabel
+	);
+	
+	void makeIbForce
+	(
+		volVectorField& U, 
+		volVectorField& f
+	);
+
+	void makeIbForceNew
+	(
+		volVectorField& U, 
+		volVectorField& f
+	);
+
 	//- Disallow default bitwise copy construct
-	twoPhaseDirectForcing(const twoPhaseDirectForcing&);
+	directForcingBallaras(const directForcingBallaras&);
 	
 	//- Disallow default bitwis assignment
-	void operator=(const twoPhaseDirectForcing&);
+	void operator=(const directForcingBallaras&);
 
 	
 public:
 
 	//- Runtime type information
-	TypeName("twoPhaseDirectForcing");
+	TypeName("directForcingBallaras");
 
 	//- Constructor
-		twoPhaseDirectForcing
+		directForcingBallaras
 		(
 			// const word& name,
 			IBdynamicFvMesh& mesh,
@@ -56,14 +91,19 @@ public:
 		);
 
 	//- Destructor
-		virtual ~twoPhaseDirectForcing()
+		virtual ~directForcingBallaras()
 		{}
 
 	//- Member functions
 
+		inline List<vectorField> Fk()
+		{
+			return Fk_;
+		}
+
 		//- Return force field for momentum equation
 		virtual volVectorField ibForce(volVectorField& U);
-
+		
 		virtual volVectorField ibForceInt();
 
 		// 12/3/2019 

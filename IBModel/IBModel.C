@@ -51,6 +51,11 @@ Foam::volVectorField Foam::IBModel::ibForceInt()
    return techniquePtr_->ibForceInt();
 }
 
+Foam::volVectorField Foam::IBModel::ibForceInt(const volVectorField&rhs)
+{
+   return techniquePtr_->ibForceInt(rhs);
+}
+
 void Foam::IBModel::multiDirectForcing
 (
 	volVectorField& u,
