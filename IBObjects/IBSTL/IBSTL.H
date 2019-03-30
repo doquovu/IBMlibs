@@ -51,8 +51,7 @@ class IBSTL
 		labelList nPointsOfFaces_;
 		labelListList pointOfFace_;
 		
-
-	//- Data for new ibm method: Yang, Ballaras
+	//- Data for new ibm method: forcing cells
 		
 		//- Interface points
 		pointField ifPts_;

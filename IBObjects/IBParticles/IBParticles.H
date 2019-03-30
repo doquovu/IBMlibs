@@ -33,48 +33,34 @@ class IBParticles
 
 	//- Particle parameters
 		word name_;
-		
 		word objectType_;
 
 		//- Center
 		point center_;
-
 		//- Radius
 		scalar R_;
-
 		//- Density 
 		scalar rho_;
-
 		//- Particle volume
 		scalar V_;
-
 		//- Moment of Inertia
 		vector Ip_;
-
 		//- Number of Lagrang points
 		label nPoints_;
-
 		//- Lagrang points
 		pointField lPoints_;
-
 		//- Do object move?
 		bool movable_;
-
 		//- Pointer to object's motion
 		PtrList<IBMotion> motions_;
 
 	//- Points connectivity for writing geometry
 		label nFaces_;
-		
 		labelList nPointsOfFaces_;
-		
 		labelListList pointOfFace_;
 
 	//- Private functions
 		
-		//- Read input TXT file for 3D particles
-		void readTXTFile(word fileName, point center, scalar R);
-
 		//- Distribute evenly Lagrangian points on sphere surface
 		pointField createUnitSphereEqAreaPartition(label nPoints);
 		scalar capArea(scalar angle);

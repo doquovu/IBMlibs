@@ -19,53 +19,6 @@ namespace Foam
 
 
 // * * * * * * * * * * * * Private Member Fuctions * * * * * * * * * * * * * //
-
-void IBParticles::readTXTFile(word fileName, point center, scalar R)
-{
-	ifstream datafile(fileName.c_str());
-    if (datafile.is_open())
-    {
-        //-Read points
-        datafile>>nPoints_;
-        lPoints_.setSize(nPoints_, vector::zero);
-        scalar x;
-        scalar y;
-        scalar z;
-        for (int pointI=0;pointI<nPoints_;pointI++)
-        {
-            datafile>>x;
-            datafile>>y;
-            datafile>>z;
-
-            lPoints_[pointI].x()=R*x+center.x();
-            lPoints_[pointI].y()=R*y+center.y();
-            lPoints_[pointI].z()=R*z+center.z();
-        }
-
-        //-Read faces connectivity:
-        datafile>>nFaces_;
-        nPointsOfFaces_.setSize(nFaces_,3);
-        pointOfFace_.setSize(nFaces_);
-        label point1;
-        label point2;
-        label point3;
-        for (int i=0;i<nFaces_;i++)
-        {
-            labelList PointsOfFaceI(0);
-            datafile>>point1;
-            datafile>>point2;
-            datafile>>point3;
-
-            PointsOfFaceI.append(point1); 
-            PointsOfFaceI.append(point2);
-            PointsOfFaceI.append(point3);
-            pointOfFace_[i] = PointsOfFaceI;
-            nPointsOfFaces_[i] = pointOfFace_[i].size();
-        }
-    }
-    datafile.close();
-}
-
 void IBParticles::createParticle2D(const dictionary& dict)
 {
     Info<< setw(4) <<"  2D particle with parameters:"<<endl;
