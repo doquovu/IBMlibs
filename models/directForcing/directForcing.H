@@ -33,7 +33,29 @@ class directForcing
 		//- Number of multi-direct forcing iteration
 		label nMDF_;
 		
+		//- Lagrangian force field
 		List<vectorField> Fk_;
+
+		//- Direct forcing method
+		word ibMethod_;
+
+		void makeIbForceUhlmann
+		(
+			const volVectorField& U, 
+			volVectorField& f
+		);
+		
+		void makeIbForce_forcingPoints
+		(
+			volVectorField& U, 
+			volVectorField& f
+		);
+
+		void makeIbForce_forcingCells
+		(
+			volVectorField& U, 
+			volVectorField& f
+		);
 
 	//- Disallow default bitwise copy construct
 	directForcing(const directForcing&);
@@ -41,7 +63,6 @@ class directForcing
 	//- Disallow default bitwis assignment
 	void operator=(const directForcing&);
 
-	
 public:
 
 	//- Runtime type information
@@ -68,11 +89,6 @@ public:
 
 		//- Return force field for momentum equation
 		virtual volVectorField ibForce(volVectorField& U);
-		
-		virtual volVectorField ibForceInt();
-
-		// 12/3/2019 
-		virtual volVectorField ibForceInt(const volVectorField& rhs);
 		
 		//- Perform multi-Firect forcing
 		virtual void multiDirectForcing

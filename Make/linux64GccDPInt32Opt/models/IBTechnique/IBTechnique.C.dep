@@ -740,5 +740,11 @@ lnInclude/movingIBObjects.H \
 $(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/IOmanip.H \
 lnInclude/IBMotion.H \
 lnInclude/IBdynamicFvMesh.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/pointMesh.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/MeshObject.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/MeshObject.C \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/pointBoundaryMesh.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/pointPatchList.H \
+$(WM_PROJECT_DIR)/src/OpenFOAM/lnInclude/pointPatch.H \
 
 

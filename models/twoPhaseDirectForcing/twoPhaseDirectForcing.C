@@ -8,7 +8,11 @@
 
 #include "twoPhaseDirectForcing.H"
 #include "addToRunTimeSelectionTable.H"
-
+#include "pointMesh.H"
+#include "pointPatchField.H"
+#include "volPointInterpolation.H"
+#include "pointVolInterpolation.H"
+#include "IBSTL.H"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -17,48 +21,13 @@ namespace Foam
 	addToRunTimeSelectionTable(IBTechnique, twoPhaseDirectForcing, dictionary);
 }
 
-//---------------------------------Constructors------------------------------//
-
-Foam::twoPhaseDirectForcing::twoPhaseDirectForcing
+//--------------------------Private Member Functions-------------------------//
+void Foam::twoPhaseDirectForcing::makeIbForceUhlmann
 (
-	// const word& name,
-	IBdynamicFvMesh& mesh,
-	const dictionary& dict
+    const volVectorField& U, 
+    volVectorField& f
 )
-:	
-	IBTechnique(mesh, dict),
-	mesh_(mesh),
-	nMDF_(readScalar(dict.lookup("multiDirForcingIter")))
 {
-    Fk_.setSize(nObjects());
-    forAll(Fk_, i)
-    {
-        Fk_[i].setSize(objects()[i].nPoints(), vector::zero);
-    }
-    Info<<"Cartesian grid size :  h = "<<h()<<nl
-        <<"Cartesian volumetric: dV = "<<dV()<<nl<<endl;
-}
-
-// -------------------------------Member Functions----------------------------//
-
-Foam::volVectorField Foam::twoPhaseDirectForcing::ibForce(volVectorField& U)
-{
-   Info<< "IBM: Calculating ibForce ..."<<endl;
-    
-    volVectorField ibForce_
-    (
-        IOobject
-        (
-            "ibForce",
-            mesh_.time().timeName(),
-            mesh_,
-            IOobject::NO_READ,
-            IOobject::NO_WRITE
-        ),
-        mesh_,
-        dimensionedVector("ibForce",
-                dimensionSet(1,-2,-2,0,0,0,0), vector(0,0,0))
-    );   
     if ( nObjects() != 0)
     {
         const scalar dT = mesh_.time().deltaTValue();
@@ -149,7 +118,7 @@ Foam::volVectorField Foam::twoPhaseDirectForcing::ibForce(volVectorField& U)
                             LPoints_[objI][pointI]
                         );
                     
-                    ibForce_[neiCells_[objI][pointI][cellI]] 
+                    f[neiCells_[objI][pointI][cellI]] 
                     += 
                         rho[neiCells_[objI][pointI][cellI]]
                     * FLagr[pointI] * deltaFuncValue * dV();
@@ -164,7 +133,7 @@ Foam::volVectorField Foam::twoPhaseDirectForcing::ibForce(volVectorField& U)
                                 deltaFunc(mesh_.C()[Shd1NeiCells_[objI][pointI][cellI]], 
                                         Shd1LPoints_[objI][pointI]);
                             
-                            ibForce_[Shd1NeiCells_[objI][pointI][cellI]] 
+                            f[Shd1NeiCells_[objI][pointI][cellI]] 
                             += 
                                 rho[Shd1NeiCells_[objI][pointI][cellI]]
                             * FLagr[pointI] * deltaFuncValue * dV();
@@ -178,7 +147,7 @@ Foam::volVectorField Foam::twoPhaseDirectForcing::ibForce(volVectorField& U)
                                 deltaFunc(mesh_.C()[Shd2NeiCells_[objI][pointI][cellI]], 
                                         Shd2LPoints_[objI][pointI]);
                             
-                            ibForce_[Shd2NeiCells_[objI][pointI][cellI]] 
+                            f[Shd2NeiCells_[objI][pointI][cellI]] 
                             +=
                                 rho[Shd2NeiCells_[objI][pointI][cellI]] 
                             * FLagr[pointI] * deltaFuncValue * dV();
@@ -191,74 +160,159 @@ Foam::volVectorField Foam::twoPhaseDirectForcing::ibForce(volVectorField& U)
             Fk_[objI] = FLagr;
         }
     }
-
-	return ibForce_;
 }
-Foam::volVectorField Foam::twoPhaseDirectForcing::ibForceInt()
-{
-    Info<< "IBM: Calculating ibForceInt ..."<<endl;
-    
-    volVectorField ibForce_
-    (
-        IOobject
-        (
-            "ibForce",
-            mesh_.time().timeName(),
-            mesh_,
-            IOobject::NO_READ,
-            IOobject::NO_WRITE
-        ),
-        mesh_,
-        dimensionedVector("ibForce",
-                dimensionSet(1,-2,-2,0,0,0,0), vector(0,0,0))
-    );   
-    volScalarField TSolidCells
-    (
-        IOobject
-        (
-            "TSolidCells",
-            mesh_.time().timeName(),
-            mesh_,
-            IOobject::NO_READ,
-            IOobject::AUTO_WRITE
-        ),
-        mesh_,
-        dimensionedScalar("TSolidCells", dimless, 0)
-    );
 
-    const scalar dT = mesh_.time().deltaTValue();
-    const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
-    const volScalarField& rho = mesh_.lookupObject<volScalarField>("rho");
-    if ( nObjects() != 0)
+void Foam::twoPhaseDirectForcing::makeIbForce_forcingPoints
+(
+    volVectorField& U, 
+    volVectorField& f
+)
+{
+    dimensionedScalar dT = mesh_.time().deltaT();
+
+    //- Interpolate value of field at point mesh
+    pointMesh pMesh(mesh_);
+    volPointInterpolation pointData(mesh_);
+
+    //- Interpolate velocity to pointMesh
+    pointVectorField Up = pointData.interpolate(U);
+    pointVectorField Updesire(Up);
+    
+    forAll(objects(), i)
     {
-        for(int objI=0; objI< nObjects(); objI++)
+        if (objects()[i].objectType() == "IBSTL")
         {
-            labelList& solidCells_ = solidCells()[objI];
-            vector US = UTranslate()[objI];
-            forAll(solidCells_, cellI)
+            IBSTL& stlObject = refCast<IBSTL>(objects()[i]);
+
+            //- Set velocity at solid points to be zero
+            const labelList& sldPts = stlObject.solidPoints();
+            
+            forAll(sldPts, pointI)
             {
-                ibForce_[solidCells_[cellI]] 
-                = 
-                    rho[solidCells_[cellI]]
-                * (US - U[solidCells_[cellI]])/dT;
-                
-                TSolidCells[solidCells_[cellI]] = 1;
+                Updesire[sldPts[pointI]] = vector::zero;
+            }
+
+            //- Interpolate velocity at virtual points and ibPoints
+            const labelList& ibPts = stlObject.forcingPoints();
+            const pointField& vtPts = stlObject.virtualPoints();
+            const labelListList& neiPts = stlObject.neighbourPoints();
+
+            forAll(vtPts, pointI)
+            {
+                vector Uvt = trilinearInterpolate(Up, vtPts[pointI], neiPts[pointI]);
+                vector Uif = vector::zero;
+                Updesire[ibPts[pointI]] = 0.5*(Uvt + Uif);
             }
         }
     }
-    // Fk_[objI] += FLagr;
 
-    if (mesh_.time().outputTime())
-    {
-        TSolidCells.write();
-    }
+    //- Interpolate velocity back to volMesh
+    pointVolInterpolation volData(pMesh, mesh_);
+    volVectorField Udesire = volData.interpolate(Updesire);
 
-    return ibForce_;
+    //- Caluclate ibForce using desired velocity and predicted velocity
+    const volScalarField& rho = mesh_.lookupObject<volScalarField>("rho");
+    f = rho*(Udesire - U)/dT;
 }
 
-Foam::volVectorField Foam::twoPhaseDirectForcing::ibForceInt(const volVectorField& rhs)
+void Foam::twoPhaseDirectForcing::makeIbForce_forcingCells
+(
+    volVectorField& U, 
+    volVectorField& f
+)
 {
-    Info<< "IBM: Calculating ibForceInt ..."<<endl;
+    dimensionedScalar dT = mesh_.time().deltaT();
+    const volScalarField& rho = mesh_.lookupObject<volScalarField>("rho"); 
+    volVectorField Udesire(U);
+
+    forAll(objects(), i)
+    {
+        if (objects()[i].objectType() == "IBSTL")
+        {
+            IBSTL& stlObject = refCast<IBSTL>(objects()[i]);
+
+            //- Set velocity at solid cells to be zero
+            const labelList& slc = stlObject.solidCells();
+            forAll(slc, cellI)
+            {
+                Udesire[slc[cellI]] = vector::zero;
+            }
+
+            const labelList& ibc = stlObject.ibCells();
+            const labelListList& ibnc = stlObject.ibNeiCells();
+            const labelList& vtpc = stlObject.virtualPointCells();
+            const pointField& vtp = stlObject.virtualPoints();
+            const pointField& ifp = stlObject.interfacePoints();
+
+            //- Interpolate velocity at pointMesh
+            volPointInterpolation pointData(mesh_);
+            pointVectorField Up = pointData.interpolate(U);
+            
+            forAll(vtp, i)
+            {
+                const labelList& curCellPoint = mesh_.cellPoints()[vtpc[i]];
+
+                //- Calculate velocity at virtual points
+                vector Uvt = trilinearInterpolate(Up, vtp[i], curCellPoint);
+
+                //- Calculate velocity at object's surface
+                vector Uib = UTranslate()[i];
+
+                //- Calculate velocity at ibCells by linear interpolation
+                scalar h1 = mag(ifp[i] - mesh_.C()[ibc[i]]);
+                scalar h2 = mag(mesh_.C()[ibc[i]] - vtp[i]);
+                scalar h = h1 + h2;
+                Udesire[ibc[i]] = h1/h*Uvt + h2/h*Uib;
+            }
+            
+            //- Create force field
+            f = rho*(Udesire - U)/dT;
+            
+            //- Spread force from ibCells to neighbour cells
+            forAll(ibc, i)
+            {
+                forAll(ibnc[i], neiI)
+                {
+                    scalar deltaFuncValue = 
+                        deltaFunc
+                        (
+                            mesh_.C()[ibnc[i][neiI]], 
+                            mesh_.C()[ibc[i]]
+                        );
+
+                    f[ibnc[i][neiI]] += f[ibc[i]]*deltaFuncValue*dV();
+                }
+            }
+        }
+    }
+}
+//---------------------------------Constructors------------------------------//
+Foam::twoPhaseDirectForcing::twoPhaseDirectForcing
+(
+	// const word& name,
+	IBdynamicFvMesh& mesh,
+	const dictionary& dict
+)
+:	
+	IBTechnique(mesh, dict),
+	mesh_(mesh),
+	nMDF_(readScalar(dict.lookup("multiDirForcingIter"))),
+    ibMethod_(dict.lookup("method"))
+{
+    Fk_.setSize(nObjects());
+    forAll(Fk_, i)
+    {
+        Fk_[i].setSize(objects()[i].nPoints(), vector::zero);
+    }
+    Info<<"Cartesian grid size :  h = "<<h()<<nl
+        <<"Cartesian volumetric: dV = "<<dV()<<nl<<endl;
+}
+
+// -------------------------------Member Functions----------------------------//
+
+Foam::volVectorField Foam::twoPhaseDirectForcing::ibForce(volVectorField& U)
+{
+   Info<< "IBM: Calculating ibForce ..."<<endl;
     
     volVectorField ibForce_
     (
@@ -274,73 +328,32 @@ Foam::volVectorField Foam::twoPhaseDirectForcing::ibForceInt(const volVectorFiel
         dimensionedVector("ibForce",
                 dimensionSet(1,-2,-2,0,0,0,0), vector(0,0,0))
     );   
-    volScalarField slc
-    (
-        IOobject
+    
+    if (ibMethod_ == "Uhlmann")
+    {
+        makeIbForceUhlmann(U, ibForce_);
+    }
+    else if (ibMethod_ == "forcingPoints")
+    {
+        makeIbForce_forcingPoints(U, ibForce_);
+    }
+    else if (ibMethod_ == "forcingCells")
+    {
+        makeIbForce_forcingCells(U, ibForce_);
+    }
+    else 
+    {
+        FatalErrorIn
         (
-            "slc",
-            mesh_.time().timeName(),
-            mesh_,
-            IOobject::NO_READ,
-            IOobject::AUTO_WRITE
-        ),
-        mesh_,
-        dimensionedScalar("slc", dimless, 0)
-    );
-
-    //- Solid cell indicator
-    forAll(solidCells(), objI)
-        forAll(solidCells()[objI], cellI)
-            slc[solidCells()[objI][cellI]] = 1;
-    if ( nObjects() != 0)
-    {
-        const dimensionedScalar dT = mesh_.time().deltaT();
-        const volVectorField& U = mesh_.lookupObject<volVectorField>("U");
-        const volScalarField& rho = mesh_.lookupObject<volScalarField>("rho"); 
-                for(int objI=0; objI< nObjects(); objI++)
-                {
-                    volVectorField Usolid
-                    (
-                        IOobject
-                        (
-                            "Usolid",
-                            mesh_.time().timeName(),
-                            mesh_,
-                            IOobject::NO_READ,
-                            IOobject::NO_WRITE
-                        ),
-                        mesh_,
-                        dimensionedVector("Usolid",
-                                dimensionSet(0,1,-1,0,0,0,0), UTranslate()[objI])
-                    ); 
-                    ibForce_ = slc*(rho*(Usolid - U)/dT + rhs);
-                }
-        // for(int objI=0; objI< nObjects(); objI++)
-        // {
-        //     labelList& solidCells_ = solidCells()[objI];
-        //     vector US = UTranslate()[objI];
-        //     forAll(solidCells_, cellI)
-        //     {
-        //         ibForce_[solidCells_[cellI]] 
-        //         = 
-        //             rho[solidCells_[cellI]]
-        //         * (US - U[solidCells_[cellI]])/dT
-        //         + rhs[solidCells_[cellI]];
-                
-        //         slc[solidCells_[cellI]] = 1;
-        //     }
-        // }
-
-
-    }
-    // Fk_[objI] += FLagr;
-
-    if (mesh_.time().outputTime())
-    {
-        slc.write();
+            "twoPhaseDirectForcing::ibForce()"
+        )   << "Unknown twoPhaseDirectForcing method: "
+            << ibMethod_<<nl<<"Valid methods are:"<<nl
+            << "("<<nl<<"Uhlmann"<<nl<<"forcingCells"<<nl
+            << "forcingPoints"<<nl<<")"<<nl
+            <<abort(FatalError);
     }
 
-    return ibForce_;
+	return ibForce_;
 }
 
 void Foam::twoPhaseDirectForcing::multiDirectForcing

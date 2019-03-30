@@ -3,8 +3,6 @@ IBModel/IBModel.C \
 models/IBTechnique/IBTechnique.C \
 models/directForcing/directForcing.C \
 models/twoPhaseDirectForcing/twoPhaseDirectForcing.C \
-models/directForcingBallaras/directForcingBallaras.C \
-models/twoPhaceDirectForcingBallaras/twoPhaseDirectForcingBallaras.C \
 IBObjects/IBObjectRegistry.C \
 IBObjects/IBObject/IBObject.C \
 IBObjects/IBParticles/IBParticles.C \

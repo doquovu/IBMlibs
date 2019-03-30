@@ -45,7 +45,36 @@ class IBTechnique
 	
 	//- Disallow default bitwise assignment
 	void operator=(const IBTechnique&);
-		
+
+protected:
+	//- Return delta function for interpolation
+	scalar deltaFunc(point pE, point pL);
+
+	scalar deltaFunc1D(scalar xE, scalar xL);
+	
+	vector linearInterpolate
+	(
+		const point p1,
+		const point p2,
+		const point target,
+		const vector v1,
+		const vector v2
+	);
+
+	vector bilinearInterpolate
+	(
+		const pointVectorField& phi,
+		const point& target,
+		const labelList& sourceLabel
+	);
+
+	vector trilinearInterpolate
+	(
+		const pointVectorField& phi,
+		const point& target,
+		const labelList& sourceLabel
+	);
+
 public:		
 	//- Runtime type information
 	TypeName("IBTechnique");
@@ -80,23 +109,11 @@ public:
 		{}
 
 	//- Member functions
-		//- Return delta function for interpolation
-		scalar deltaFunc(point pE, point pL);
-
-		//- Return 1D delta function
-		scalar deltaFunc1D(scalar xE, scalar xL);
-
 		//- Return pressure gradient field for periodic problems
 		volVectorField pressureGradField();
-
+		
 		virtual volVectorField ibForce(volVectorField& U) = 0;
 
-		virtual volVectorField ibForceInt() = 0;
-
-		// 12/3/2019 
-		virtual volVectorField ibForceInt(const volVectorField& rhs) = 0;
-
-		//- Perform multi-Firect forcing
 		virtual void multiDirectForcing
 		(
 			volVectorField& u,
