@@ -2,7 +2,6 @@
 
 
 ## Basic Git Commands
-==================
 
 *Source: https://github.com/joshnh*
 
