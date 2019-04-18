@@ -184,8 +184,8 @@ void Foam::directForcing::makeIbForce_forcingCells
             }
 
             //- Interpolate velocity from volMesh to pointMesh
-            volPointInterpolation pointData(mesh_);
-            pointVectorField Up = pointData.interpolate(U);
+            // volPointInterpolation pointData(mesh_);
+            // pointVectorField Up = pointData.interpolate(U);
             
             const labelList& ibc = stlObject.ibCells();
             const labelListList& ibnc = stlObject.ibNeiCells();
@@ -196,9 +196,15 @@ void Foam::directForcing::makeIbForce_forcingCells
             forAll(vtp, pointI)
             {
                 //- Calculate velocity at virtual point,
-                //  using trilinear interpolation 
-                const labelList& curCellPoint = mesh_.cellPoints()[vtpc[pointI]];
-                vector Uvt = trilinearInterpolate(Up, vtp[pointI], curCellPoint);
+                //  using trilinear interpolation
+                //  NOTE: cannot be use for mesh with different levels since
+                //        cells at transition region has more than 8 vertices 
+                // const labelList& curCellPoint = mesh_.cellPoints()[vtpc[pointI]];
+                // vector Uvt = trilinearInterpolate(Up, vtp[pointI], curCellPoint);
+
+                //- Calculate velocity at virtual point
+                //  using Foam::interpolation
+                vector Uvt = cellToPointInterpolate(U, vtp[pointI], vtpc[pointI]);
 
                 //- Calculate the velocity at object's surface
                 vector Uib = UTranslate()[i];
@@ -304,7 +310,7 @@ void Foam::directForcing::multiDirectForcing
 {
     if(nMDF_ > 0)
     {
-        dimensionedScalar dT("dT",dimTime,mesh_.time().deltaTValue());;
+        dimensionedScalar dT = mesh_.time().deltaT();
 
         for(int i=0; i<nMDF_; i++)
         {
@@ -333,19 +339,19 @@ void Foam::directForcing::update()
 
     writeNeighbourCells();
     // //- Refine mesh following neighbour cells indicator
-    mesh_.update(cellsToRefine());
+    // mesh_.update(cellsToRefine());
 
-    //- Update neighbour cells after mesh refinement
-    for(int i=0; i<nObjects(); i++)
-    {
-        neiCells()[i] = findNeiCells(LPoints()[i]);
-    }
+    // //- Update neighbour cells after mesh refinement
+    // for(int i=0; i<nObjects(); i++)
+    // {
+    //     neiCells()[i] = findNeiCells(LPoints()[i]);
+    // }
 
     // //- Update h and dV (only do 1 time at timeIndex = 1)
-    updateCartesianGridSize();
+    // updateCartesianGridSize();
 
     //- Write neighbour cells indicator
-    writeNeighbourCells();
+    // writeNeighbourCells();
 }
 
 void Foam::directForcing::write()
@@ -378,6 +384,7 @@ void Foam::directForcing::write()
         {
             writeShadPoints(objI, Shd1LPoints()[objI], Shd2LPoints()[objI]);
         }
+
         // Fk_[objI].clear();
         // Fk_[objI].setSize(objects()[objI].nPoints(), vector::zero);
     }

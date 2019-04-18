@@ -17,6 +17,7 @@
 #include "movingIBObjects.H"
 #include "dictionary.H"
 #include "IBdynamicFvMesh.H"
+#include "interpolation.H"
 // #include "IBAdaptiveRefineFvMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -75,6 +76,20 @@ protected:
 		const labelList& sourceLabel
 	);
 
+	// template<class Type>
+	// Type cellToPointInterpolate
+	// (
+	// 	const GeometricField<Type, fvPatchField, volMesh>& psi,
+	// 	const vector& position,
+	// 	const label cellID
+	// );
+
+	vector cellToPointInterpolate
+	(
+		const volVectorField& U,
+		const vector& position,
+		const label cellID
+	);
 public:		
 	//- Runtime type information
 	TypeName("IBTechnique");

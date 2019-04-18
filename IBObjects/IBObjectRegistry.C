@@ -86,7 +86,6 @@ Foam::labelListList Foam::IBObjectRegistry::findNeiCells
 )
 {
     labelListList neighbour(points.size());
-
     forAll(points, pointI)
     {
         forAll(mesh_.C(), cellI)

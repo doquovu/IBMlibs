@@ -59,11 +59,16 @@ class IBSTL
 		pointField vtPts_;
 		//- Fluid cells indicator
 		volScalarField gamma_;
-
+		//- Solid cells enclosed by stl surface
 		labelList solidCells_;
+		//- Cells on which BCs will be enforced
 		labelList ibCells_;
-		labelListList ibNeiCells_;
+		//- Addressing of virtual points and its enclosing cell
+		//  firstID = proc number
+		//  secondID = cellID of that proc
 		labelList vtPointCells_;
+		//- Neighbour of ibCells
+		List<labelList> ibNeiCells_;
 
 	//- Private functions
 		scalar cellSize(label cellID);
@@ -101,8 +106,8 @@ public:
 		const pointField& virtualPoints() {return vtPts_;}
 		const labelList& solidCells() {return solidCells_;}
 		const labelList& ibCells() {return ibCells_;}
-		const labelListList& ibNeiCells() {return ibNeiCells_;}
 		const labelList& virtualPointCells() {return vtPointCells_;}
+		const List<labelList>& ibNeiCells() {return ibNeiCells_;}
 
 
 		virtual word name();

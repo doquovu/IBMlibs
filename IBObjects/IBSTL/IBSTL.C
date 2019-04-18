@@ -11,6 +11,7 @@
 #include "IOmanip.H"
 #include "pointMesh.H"
 #include "pointPatchField.H"
+#include "meshSearch.H"
 // * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -128,7 +129,6 @@ void IBSTL::makeInterpolationStencil()
                 solidCells_.append(cellI);
             }
         }
-        Info<<"@@@@@@@@@ found "<<solidCells_.size()<<" solidCells"<<endl;
     
     //- Find ib cells
         labelHashSet ibCellSet;
@@ -158,8 +158,7 @@ void IBSTL::makeInterpolationStencil()
             }
         }
         ibCells_ = labelList(ibCellSet.toc());
-        Info<<"@@@@@@@@@ found "<<ibCells_.size()<<" ibcells"<<endl;
-
+        
     //- Find interface points correspond to ibCells centre
         ifPts_.setSize(ibCells_.size());
         const pointField ibcc(mesh_.C(), ibCells_);
@@ -193,26 +192,76 @@ void IBSTL::makeInterpolationStencil()
 
     //- Find virtual points corresponding to each ibCells centre
         vtPts_.setSize(ibCells_.size());
-        vtPointCells_.setSize(vtPts_.size());
         
         forAll(vtPts_, i)
         {
             vector h1 = mesh_.C()[ibCells_[i]] - ifPts_[i];
             vtPts_[i] = ifPts_[i] + 2.0*h1;
-
-            //- if virtual point lies inside ibCells, translate it further
-            while (mesh_.findCell(vtPts_[i]) == ibCells_[i])
-            {
-                vtPts_[i] += 1.0*h1;
-            }
-
-            vtPointCells_[i] = mesh_.findCell(vtPts_[i]);
         }
 
+        Pout<<"@@@@@@@@@ found "<<vtPts_.size()<<" virtual points."<<endl;
+
+        // List<pointField> procVtPts(Pstream::nProcs());
+        // procVtPts[Pstream::myProcNo()] = vtPts_;
+
+        // Pstream::gatherList(procVtPts);
+        // Pstream::scatterList(procVtPts);
+
+    //- Find cell enclosing each virtual point
+        vtPointCells_.setSize(vtPts_.size());
+        meshSearch ms(mesh_);
+
+        forAll(vtPointCells_, pointI)
+        {
+            label cellID = ms.findCell(vtPts_[pointI]);
+            if (cellID != -1)
+            {
+                vtPointCells_[pointI] = cellID;
+            }
+            else 
+            {
+                FatalErrorIn
+                (
+                    "IBSTL::makeInterpolationStencil()"
+                )   << "Error: cannot find cell enclosing virtual point "<<pointI
+                    << ": "<<vtPts_[pointI]<<nl
+                    <<abort(FatalError);
+            }
+
+        }
+
+        // List<List<labelList>> procVtPtsCell(Pstream::nProcs());
+        // procVtPtsCell[Pstream::myProcNo()] = vtPointCells_;
+
+        // Pstream::gatherList(procVtPtsCell);
+        // Pstream::scatterList(procVtPtsCell);
+
+        // for (label procI=0; procI<Pstream::nProcs(); procI++)
+        // {
+        //     if (procI != Pstream::myProcNo())
+        //     {
+        //         forAll(procVtPtsCell[procI], pI)
+        //         {
+        //             if (procVtPtsCell[procI][pI][0] == -1)
+        //             {
+        //                 point curPoint = procVtPts[procI][pI];
+        //                 label cellID = ms.findCell(curPoint);
+        //                 if (cellID != -1)
+        //                 {
+        //                     procVtPtsCell[procI][pI][0] = Pstream::myProcNo();
+        //                     procVtPtsCell[procI][pI][1] = cellID;
+        //                 }
+        //             }
+        //             reduce(procVtPtsCell[procI][pI], maxOp<labelList>());
+        //         }
+        //     }
+        // }
+        // vtPointCells_ = procVtPtsCell[Pstream::myProcNo()];
+
+
+    // - Find neighbour cells of ibCells
         const labelListList& cellPoints = mesh_.cellPoints();
         const labelListList& pointCells = mesh_.pointCells();
-
-    //- Find neighbour cells of ibCells
         ibNeiCells_.setSize(ibCells_.size());
         
         forAll(ibCells_, i)

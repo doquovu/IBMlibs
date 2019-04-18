@@ -8,6 +8,7 @@
 
 #include "IBTechnique.H"
 #include "pointMesh.H"
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -159,7 +160,7 @@ vector IBTechnique::trilinearInterpolate
     {
         FatalErrorIn
         (
-            "directForcingBallaras::trilinearInterpolate()"
+            "IBTechnique::trilinearInterpolate()"
         )   << "Error: trilinearInterpolate needs 8 points, "
             << sourceLabel.size() <<" points provided"<<nl
             <<abort(FatalError);
@@ -188,6 +189,38 @@ vector IBTechnique::trilinearInterpolate
     vector v2 = bilinearInterpolate(phi, p2, pointStage2);
     
     return (linearInterpolate(p1, p2, target, v1, v2));
+}
+
+// template<class Type> Type IBTechnique::cellToPointInterpolate
+// (
+//     //const GeometricField<Type, fvPatchField, volMesh>& psi,
+//     const vector& position,
+//     const label cellID
+// ) 
+// {
+//     interpolation<Type> interpolator(psi);
+
+//     return (interpolator.interpolate(position, cellID));
+// }
+
+vector IBTechnique::cellToPointInterpolate
+(
+    const volVectorField& U,
+    const vector& position,
+    const label cellID
+)
+{
+    // interpolation<vector> interpolator(U);
+    autoPtr<interpolation<vector>> interpolatorPtr;
+    interpolatorPtr = interpolation<vector>::New
+    (
+        "cellPoint",
+        U
+    );
+
+    vector value = interpolatorPtr->interpolate(position, cellID);
+    return value;
+    // return (interpolator.interpolate(position, cellID));
 }
 //---------------------------------Constructors------------------------------//
 
