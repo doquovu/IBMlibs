@@ -1,4 +1,6 @@
 # IBMlibs
+A library to construct and simulate moving objects in OpenFOAM using immersed boundary method.
+
 
 
 ## Basic Git Commands
